@@ -1,0 +1,15 @@
+{
+	"interface-name": "intf-1/123",
+	"device-name": "dev123",
+	"interface-type" : "iana-if-type:other",
+	"action" :"CREATE",
+	"description":"This is an interface",
+	"mtu": "${MTU}",
+	"vlan-id": "22",
+	"ip-addresses-v4" : [
+	  {
+		"ip-address" : "${ADDRESS4[*]}",
+		"prefix-length" : "${ADDRESS4LEN[*]}"
+	  }
+	 ]
+}

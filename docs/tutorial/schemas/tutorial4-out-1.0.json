@@ -1,0 +1,10 @@
+{
+  "admin": {
+    "overall-status": "${status}"
+  },
+  "network-element" : {
+    "mtu": "${mtu}",
+    "max-delay": "${delay}",
+    "max-jitter": "${jitter}"
+  }
+}

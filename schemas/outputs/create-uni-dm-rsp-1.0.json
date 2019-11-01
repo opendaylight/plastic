@@ -1,0 +1,5 @@
+{
+  "request-id": "${request-id}",
+  "request-time": "${request-time}",
+  "completion-status": "${completion-status}"
+}

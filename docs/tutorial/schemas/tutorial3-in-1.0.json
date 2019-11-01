@@ -1,0 +1,6 @@
+{
+  "admin-status": "${status}",
+  "min-mtu": "${mtu}",
+  "max-delay-msec": "${delay}",
+  "max-jitter": "${jitter}"
+}

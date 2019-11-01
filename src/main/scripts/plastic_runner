@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Copyright (c) 2019 Lumina Networks, Inc. All rights reserved.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v1.0 which accompanies this distribution,
+# and is available at http://www.eclipse.org/legal/epl-v10.html
+
+: ${1?"Please supply a properties file name"}
+
+main_class="org.opendaylight.plastic.implementation.PlasticRunner"
+
+# The executable jar file has all dependencies in it while the plain jar does not
+
+# Look locally (they are first, so have priority)
+
+cart_1=$(find . -name '*plastic*exec.jar') || ""
+IFS=$'\n' carts_1=($cart_1)
+
+# Look in a standard installation area
+
+if [[ -d /opt/lumina/lsc ]]; then
+    cart_2=$(find /opt/lumina/lsc -name '*plastic*exec.jar')
+    IFS=$'\n' carts_2=($cart_2)
+else
+    cart_2=""
+fi
+
+candidates=("${carts_1[@]}" "${carts_2[@]}")
+
+for candidate in "${candidates[@]}"
+do
+	if [ -f "$candidate" ]; then
+    	echo "Using Plastic implementation at $candidate"
+        executable=$candidate
+        break
+    fi
+done
+
+if [ "$executable" == "" ]; then
+    echo "Could not locate the main jar file for Plastic"
+    exit 1
+fi
+
+
+# Optional for debug
+JAVA_DEBUG='-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005'
+JAVA_DEBUG=
+
+exec java ${JAVA_DEBUG} -jar ${executable} ${1} ${2} ${3} ${4} ${5} ${6} ${7}

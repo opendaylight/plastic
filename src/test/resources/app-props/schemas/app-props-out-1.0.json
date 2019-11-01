@@ -1,0 +1,5 @@
+{
+  "classifier-says": "${classifier-status}",
+  "morpher-says": "${morpher-says}",
+  "schema-says": "${schema-status}"
+}

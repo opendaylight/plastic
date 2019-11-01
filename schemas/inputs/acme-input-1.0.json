@@ -1,0 +1,25 @@
+{
+  "adminStatus": "UP",
+  "description": "${description}",
+  "deviceName": "${deviceName}",
+  "interfaceName": "${interfaceName}",
+  "ipAddressesV4": [
+    {
+      "ip-address": "${ip4-address[*]}",
+      "prefix-length": "${prefix4-length[*]}"
+    }
+  ],
+  "ipAddressesV6": [
+    {
+      "ip-address": "${ip6-address[*]}",
+      "prefix-length": "${prefix6-length[*]}"
+    }
+  ],
+  "mtu": "-{mtu}",
+  "mplsEnable": false,
+  "bundleId": "na",
+  "vlanId": "${vlanId}",
+  "subIntfId": "-{subIntfId}",
+  "operStatus": "UP",
+  "deviceVendor": "juniper"
+}

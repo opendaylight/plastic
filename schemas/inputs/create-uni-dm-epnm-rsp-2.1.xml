@@ -1,0 +1,8 @@
+<provision-service-response xmlns="urn:cisco:params:xml:ns:yang:service:activation:v1">
+    <request-id>${request-id}</request-id>
+    <service-type>carrier-ethernet-vpn</service-type>
+    <service-subtype>UNI</service-subtype>
+    <preview>false</preview>
+    <request-time>${request-time}</request-time>
+    <completion-status>${completion-status}</completion-status>
+</provision-service-response>

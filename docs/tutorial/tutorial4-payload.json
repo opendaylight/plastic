@@ -1,0 +1,5 @@
+{
+  "admin-status": "UP",
+  "min-mtu": "1500",
+  "max-delay-msec": "10"
+}

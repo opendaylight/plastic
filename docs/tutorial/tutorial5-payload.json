@@ -1,0 +1,18 @@
+{
+  "deviceName": "CXP-2501",
+  "interfaceName": "TCP/1/0/24",
+  "addresses": [
+    {
+      "address": "10.10.100.100",
+      "prefix-length": "24"
+    },
+    {
+      "address": "10.10.100.221",
+      "prefix-length": "24"
+    },
+    {
+      "address": "10.10.100.168",
+      "prefix-length": "24"
+    }
+  ]
+}

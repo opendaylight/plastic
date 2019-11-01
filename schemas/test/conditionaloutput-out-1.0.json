@@ -1,0 +1,28 @@
+{
+	"requests" : [
+		{
+			"type" : "PUT",
+			"URL": "network-topology:network-topology/topology/topology-netconf/node/dev123/yang-ext:mount/ietf-interfaces:interfaces/interface/intf-1%2F123",
+			"payload" : {
+				"interface": [
+					{
+						"name":			"intf-1/123",
+						"description":	"This is an interface",
+						"mtu":          "${MTU}",
+						"vlan-interface-std:vlan": {
+								"ip-management-vlan-std:ip": {
+										"address": [
+												{
+														"ip":				"${ADDRESS4[*]}",
+														"prefix-length":    "${ADDRESS4LEN[*]}"
+												}
+										]
+								}
+						},
+						"type": "vlan-interface-std:l3ipvlan"
+					}
+				]
+			}
+		}											
+	]
+}

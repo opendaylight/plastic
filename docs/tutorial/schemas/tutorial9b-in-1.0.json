@@ -1,0 +1,6 @@
+{
+  "interface-removed-alarm": {
+    "interface-name": "${property1}",
+    "address": "${property2}"
+  }
+}

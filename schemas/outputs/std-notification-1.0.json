@@ -1,0 +1,25 @@
+{
+  "change-update": {
+    "notification-id": "${notification-id}",
+    "request-id": "${request-id}",
+    "topic": "${topic}",
+    "time-of-update": "${time-of-update}",
+    "operation": "${operation}",
+    "service-activation-response": {
+      "ni-ref": "${ni-ref}",
+      "service-type": "${service-type}",
+      "service-subtype": "${service-subtype}",
+      "preview": "${preview}",
+      "request-time": "${request-time}",
+      "completion-time": "${completion-time}",
+      "deploy-results": {
+        "result": {
+          "node-ref": "${node-ref}",
+          "state": "${state}",
+          "config": ""
+        }
+      },
+      "completion-status": "${completion-status}"
+    }
+  }
+}

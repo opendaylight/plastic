@@ -1,0 +1,6 @@
+{
+  "interface-removed-alarm": {
+    "interface-name": "CX9-100",
+    "address": "10.10.100.100"
+  }
+}

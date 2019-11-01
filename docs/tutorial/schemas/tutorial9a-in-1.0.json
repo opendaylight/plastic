@@ -1,0 +1,6 @@
+{
+  "user-login-event": {
+    "user-name": "${property1}",
+    "account": "${property2}"
+  }
+}

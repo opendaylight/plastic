@@ -1,0 +1,10 @@
+{
+  "deviceName": "${dName}",
+  "interfaceName": "${iName}",
+  "addresses": [
+    {
+      "address": "${addr[*]}",
+      "prefix-length": "${pref-len[*]}"
+    }
+  ]
+}

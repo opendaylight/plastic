@@ -1,0 +1,26 @@
+{
+  "unit": [
+    {
+      "name":"${interfaceName}",
+      "dev-name":"${deviceName}",
+      "vlan-id":"${vlanId}",
+      "description": "VLAN - Created by the Acme",
+      "family": {
+        "inet": {
+          "address": [
+            {
+              "name":"${ip4-address[*]}/${prefix4-length[*]}"
+            }
+          ]
+        },
+        "inet6": {
+          "address":[
+            {
+              "name":"${ip6-address[*]}/${prefix6-length[*]}"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

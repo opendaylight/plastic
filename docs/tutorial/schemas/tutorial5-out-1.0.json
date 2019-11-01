@@ -1,0 +1,9 @@
+{
+  "dev-name": "${dName}",
+  "interface-name": "${iName}",
+  "objects": [
+    {
+      "subnet": "${addr[*]}/${pref-len[*]}"
+    }
+  ]
+}

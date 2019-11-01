@@ -1,0 +1,4 @@
+{
+  "classifier-says": "${classifier-status}",
+  "abc": "${schema-status}"
+}

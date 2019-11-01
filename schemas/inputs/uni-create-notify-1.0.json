@@ -1,0 +1,28 @@
+{
+  "push.push-change-update":{
+    "push.notification-id":7216168034521879535,
+    "push.request-id":"a71bd501-fd05-43c2-ae8a-2faafb4e79da",
+    "push.topic":"service-activation",
+    "push.time-of-update":"2017-06-15 05:22:49.789",
+    "push.operation":"push:create",
+    "push.service-activation-response":{
+      "push.ni-ref":"MD=CISCO_EPNM!NI=300006015_5003528",
+      "push.service-name":"UNI-A",
+      "push.service-type":"carrier-ethernet-vpn",
+      "push.service-subtype":"UNI",
+      "push.preview":false,
+      "push.request-time":"Thu Jun 15 05:22:45 UTC 2017",
+      "push.completion-time":"Thu Jun 15 05:22:48 UTC 2017",
+      "push.deploy-results":{
+        "push.result":{
+          "push.node-ref":"MD=CISCO_EPNM!ND=ACME",
+          "push.state":"SUCCESSFUL",
+          "push.config":"",
+          "push.rollback-config":""
+        }
+
+      },
+      "push.completion-status":"SUCCESS"
+    }
+  }
+}
