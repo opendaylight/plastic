@@ -10,7 +10,58 @@
   <name>odl-plastic</name>
   <description>app for mapping xml/json to arbitrary xml/json</description>
 
+    <!-- Below copied from odl-parent, which we do not inherit from -->
+
+    <!-- Sufficient Metadata for Maven Central Repository deployment
+          These are default, some of which project inheriting from this POM may override (but don't have to, typically)
+          see http://central.sonatype.org/pages/requirements.html
+      -->
+    <url>${odl.site.url}/${project.groupId}/${stream}/${project.artifactId}/</url>
+
+    <licenses>
+        <license>
+            <name>Eclipse Public License v1.0</name>
+            <url>https://www.eclipse.org/legal/epl-v10.html</url>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>OpenDaylight</name>
+        <url>https://www.opendaylight.org</url>
+    </organization>
+
+    <issueManagement>
+        <system>JIRA</system>
+        <url>https://jira.opendaylight.org/</url>
+    </issueManagement>
+
+    <ciManagement>
+        <system>Jenkins</system>
+        <url>https://jenkins.opendaylight.org/releng/</url>
+    </ciManagement>
+
+    <scm>
+        <url>https://git.opendaylight.org/gerrit/</url>
+    </scm>
+
+    <developers>
+        <developer>
+            <id>*</id>
+            <name>Please consult the PROJECT_INFO.yaml, README* and/or CONTRIBUTORS which should be included with this JAR</name>
+            <url>https://www.opendaylight.org</url>
+            <email>helpdesk@opendaylight.org</email>
+        </developer>
+    </developers>
+
   <properties>
+
+      <!-- Below copied from odl-parent, which we do not inherit from -->
+      <nexusproxy>https://nexus.opendaylight.org/content</nexusproxy>
+
+      <!-- Variables required for Maven Site generation -->
+      <odl.site.url>https://nexus.opendaylight.org/content/sites/site/</odl.site.url>
+      <stream>latest</stream><!-- CI should pass in -Dstream={stream} -->
+
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <java.version>1.8</java.version>
@@ -319,5 +370,16 @@
       </plugin>
     </plugins>
   </build>
+
+    <distributionManagement>
+        <repository>
+            <id>opendaylight-release</id>
+            <url>${nexusproxy}/repositories/opendaylight.release/</url>
+        </repository>
+        <snapshotRepository>
+            <id>opendaylight-snapshot</id>
+            <url>${nexusproxy}/repositories/opendaylight.snapshot/</url>
+        </snapshotRepository>
+    </distributionManagement>
 
 </project>
