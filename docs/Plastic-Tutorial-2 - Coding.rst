@@ -539,7 +539,7 @@ have schemas for:
 * each individual message type
 * the parent structure that contains the list of messages
 
-.. code-block:: JSON
+.. code-block:: none
 
   {
     "msglog": {
