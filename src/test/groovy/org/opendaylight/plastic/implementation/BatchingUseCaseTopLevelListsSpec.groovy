@@ -55,7 +55,7 @@ class BatchingUseCaseTopLevelListsSpec extends Specification {
     }
 
     String testPayload = '''
-    [ 
+    [
         {
             "name": "abc",
             "value": 1
@@ -99,7 +99,7 @@ class BatchingUseCaseTopLevelListsSpec extends Specification {
     '''
 
     String expected = '''
-{ "stuff": 
+{ "stuff":
     [
         {
             "name-value": "abc|1"

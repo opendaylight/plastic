@@ -1,7 +1,7 @@
 {
   "a": {
     "b": {
-      "c": [ "${my-children[*]}" ]
+      "c": ["${my-children[*]}"]
     },
     "some-key": "${some-value}"
   }

@@ -23,11 +23,11 @@ class ChunkyJsonFormatSpec extends Specification {
         {
             "abc": 123
         }
--                    
+-
         {
             "def": 456
         }
--                    
+-
         {
             "ghi": 789
         }

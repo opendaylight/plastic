@@ -232,7 +232,7 @@ class JsonValuesInjectorSpec extends Specification {
         Object payloadAndOutput = new JsonSlurper().parseText('''
         {
             "components": [
-                { 
+                {
                   "address": "${ADDR[*]}",
                   "extra": "${EXTRA}"
                 }
@@ -260,7 +260,7 @@ class JsonValuesInjectorSpec extends Specification {
         Object payloadAndOutput = new JsonSlurper().parseText('''
         {
             "components": [
-                { 
+                {
                   "address": "${ADDR[*]}/${LEN[*]}",
                 }
             ]
@@ -288,7 +288,7 @@ class JsonValuesInjectorSpec extends Specification {
         {
             "components": [
                 {
-                  "subcomponent": { 
+                  "subcomponent": {
                     "address": "${ADDR[*]}/${LEN[*]}",
                   }
                 }
@@ -313,7 +313,7 @@ class JsonValuesInjectorSpec extends Specification {
         Object payloadAndOutput = new JsonSlurper().parseText('''
         {
             "components": [
-                { 
+                {
                   "here": "${ABC}",
                   "there": "${DEF}"
                 }
@@ -375,7 +375,7 @@ class JsonValuesInjectorSpec extends Specification {
         {
             "components": [
                 {
-                  "subcomponent": { 
+                  "subcomponent": {
                     "address": "${ADDR[*]}/${LEN[*]}",
                   }
                 }
@@ -387,7 +387,7 @@ class JsonValuesInjectorSpec extends Specification {
         {
             "components": [
                 {
-                  "subcomponent": { 
+                  "subcomponent": {
                     "address": "${ADDR[0]}/${LEN[0]}",
                   }
                 }

@@ -57,7 +57,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "bandwidth": "123" 
+            "bandwidth": "123"
         }
         '''
         )
@@ -87,7 +87,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "bandwidth": "123" 
+            "bandwidth": "123"
         }
         '''
         )
@@ -117,7 +117,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "bandwidth": "123" 
+            "bandwidth": "123"
         }
         '''
         )
@@ -182,7 +182,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "bandwidth": "123" 
+            "bandwidth": "123"
         }
         '''
         )
@@ -214,7 +214,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "bandwidth": "123" 
+            "bandwidth": "123"
         }
         '''
         )
@@ -244,13 +244,13 @@ class MapTaskSpec extends Specification {
         '''
         )
         String payload = '''
-        { 
-            "band.width": "123" 
+        {
+            "band.width": "123"
         }
         '''
         String expected = '''
-        { 
-            "goes.here": "123" 
+        {
+            "goes.here": "123"
         }
         '''
         and:
@@ -320,7 +320,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "def": "456" 
+            "def": "456"
         }
         '''
         )
@@ -367,7 +367,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "bandwidth": "123" 
+            "bandwidth": "123"
         }
         '''
         )
@@ -401,7 +401,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "bandwidth": "123" 
+            "bandwidth": "123"
         }
         '''
         )
@@ -475,7 +475,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
                 '''
         {
-            "bandwidth": "123" 
+            "bandwidth": "123"
         }
         '''
         )
@@ -517,7 +517,7 @@ class MapTaskSpec extends Specification {
         Schema payload = asSchema("foo", "1.0", "json",
         '''
         {
-            "value1": "123" 
+            "value1": "123"
         }
         '''
         )
@@ -825,11 +825,11 @@ class MapTaskSpec extends Specification {
         {
             "name": "red"
         }
--        
+-
         {
             "name": "green"
         }
--        
+-
         {
             "name": "blue"
         }

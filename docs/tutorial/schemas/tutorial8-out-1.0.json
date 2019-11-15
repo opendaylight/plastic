@@ -1,20 +1,20 @@
 {
-	"interface": [
-		{
-			"name":			"intf-1/123",
-			"description":	"This is an interface",
-			"mtu":          "${MTU}",
-			"vlan-interface-std:vlan": {
-				"ip-management-vlan-std:ip": {
-					"address": [
-						{
-							"ip":				"${ADDRESS4[*]}",
-							"prefix-length":    "${ADDRESS4LEN[*]}"
-						}
-					]
-				}
-			},
-			"type": "vlan-interface-std:l3ipvlan"
-		}
-	]
+  "interface": [
+    {
+      "name": "intf-1/123",
+      "description": "This is an interface",
+      "mtu": "${MTU}",
+      "vlan-interface-std:vlan": {
+        "ip-management-vlan-std:ip": {
+          "address": [
+            {
+              "ip": "${ADDRESS4[*]}",
+              "prefix-length": "${ADDRESS4LEN[*]}"
+            }
+          ]
+        }
+      },
+      "type": "vlan-interface-std:l3ipvlan"
+    }
+  ]
 }

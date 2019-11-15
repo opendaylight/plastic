@@ -1,5 +1,5 @@
 {
-	"device-name-here": "${dev-name}",
-	"action" :"${action}",
-	"optional": "${optional-in}"
+  "device-name-here": "${dev-name}",
+  "action": "${action}",
+  "optional": "${optional-in}"
 }

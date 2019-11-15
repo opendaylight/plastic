@@ -1,9 +1,7 @@
 {
-	"results": {
-		"my-scalar-value": "${scalar-value}",
-		"my-blob-value": "${blob-value}",
-		"my-array-values": [
-			"${array-value[*]}"
-		]
-	}
+  "results": {
+    "my-scalar-value": "${scalar-value}",
+    "my-blob-value": "${blob-value}",
+    "my-array-values": ["${array-value[*]}"]
+  }
 }

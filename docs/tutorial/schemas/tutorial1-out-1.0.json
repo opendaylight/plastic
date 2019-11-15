@@ -2,7 +2,7 @@
   "admin": {
     "overall-status": "${status}"
   },
-  "network-element" : {
+  "network-element": {
     "mtu": "${mtu}",
     "max-delay": "${delay}"
   }

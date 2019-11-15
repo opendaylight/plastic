@@ -141,7 +141,7 @@ class XmlFinderBinderSpec extends Specification {
 
         when:
         Map found = instance.process(model, payload).bindings()
-        
+
         then:
         found["abc"] == "333"
         }

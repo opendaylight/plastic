@@ -1,18 +1,18 @@
 {
   "interface-name": "intf-1/123",
   "device-name": "dev123",
-  "interface-type" : "iana-if-type:other",
-  "action" :"CREATE",
-  "description":"This is an interface",
+  "interface-type": "iana-if-type:other",
+  "action": "CREATE",
+  "description": "This is an interface",
   "vlan-id": "22",
-  "ip-addresses-v4" : [
+  "ip-addresses-v4": [
     {
-      "ip-address" : "192.168.1.1",
-      "prefix-length" : "24"
+      "ip-address": "192.168.1.1",
+      "prefix-length": "24"
     },
     {
-      "ip-address" : "192.168.2.1",
-      "prefix-length" : "24"
+      "ip-address": "192.168.2.1",
+      "prefix-length": "24"
     }
   ]
 }

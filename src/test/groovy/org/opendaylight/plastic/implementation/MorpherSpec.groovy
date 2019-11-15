@@ -46,7 +46,7 @@ class ValuesTweaker {
 
         String tweakMoValuesCode =
                 '''
-import org.opendaylight.plastic.implementation.ExtendedBasicMorpher 
+import org.opendaylight.plastic.implementation.ExtendedBasicMorpher
 import org.opendaylight.plastic.implementation.author.MoVariables
 
 class ValuesTweaker extends ExtendedBasicMorpher {

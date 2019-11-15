@@ -1,9 +1,9 @@
 {
   "interface-name": "intf-1/123",
   "device-name": "dev123",
-  "interface-type" : "iana-if-type:other",
-  "action" :"CREATE",
-  "description":"This is an interface",
+  "interface-type": "iana-if-type:other",
+  "action": "CREATE",
+  "description": "This is an interface",
   "mtu": "9150",
   "vlan-id": "22"
 }

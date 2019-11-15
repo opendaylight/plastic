@@ -1,5 +1,5 @@
 {
-  "network-element" : {
+  "network-element": {
     "id": "${node-urlencoded}",
     "ip-address": "${address}",
     "port": "${port}"

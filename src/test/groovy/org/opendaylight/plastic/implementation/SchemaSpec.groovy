@@ -20,8 +20,8 @@ class SchemaSpec extends Specification {
         given:
         String raw = '''
         {
-            "a": 1, 
-            "b": 2 
+            "a": 1,
+            "b": 2
         }
         '''
         when:

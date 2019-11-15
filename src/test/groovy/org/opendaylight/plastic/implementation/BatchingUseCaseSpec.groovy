@@ -131,7 +131,7 @@ class BatchingUseCaseSpec extends Specification {
 
     String testPayload = """
     {
-        "container-in": [ 
+        "container-in": [
             ${expand(concreteInSchema, ["my-name","my-value"], varBinds)}
         ]
     }

@@ -1,10 +1,10 @@
 {
-	"better-string": "${abc}",
-	"better-int": "${def}",
-	"better-big-int": "${ghi}",
-	"better-zero": "${jkl}",
-	"better-exp-big-int": "${mno}",
-	"better-exp-big-string": "${pqr}",
-	"zero-int": "${zero-int}",
-	"zero-string": "${zero-string}"
+  "better-string": "${abc}",
+  "better-int": "${def}",
+  "better-big-int": "${ghi}",
+  "better-zero": "${jkl}",
+  "better-exp-big-int": "${mno}",
+  "better-exp-big-string": "${pqr}",
+  "zero-int": "${zero-int}",
+  "zero-string": "${zero-string}"
 }

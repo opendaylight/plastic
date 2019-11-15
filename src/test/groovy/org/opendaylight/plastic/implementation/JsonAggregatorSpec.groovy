@@ -48,7 +48,7 @@ class JsonAggregatorSpec extends Specification {
 
     def "incidental whitespace has no affect on deaggregation"() {
         given:
-        String item1 = '''{ 
+        String item1 = '''{
             "abc": 1
         }'''
         String item2 = '''{

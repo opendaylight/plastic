@@ -39,7 +39,7 @@ class JsonValuesInjectorStressSpec extends Specification {
         {
             "components": [
                 {
-                  "subcomponent": { 
+                  "subcomponent": {
                     "address": "${ADDR[*]}/${LEN[*]}",
                   }
                 }

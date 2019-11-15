@@ -116,7 +116,7 @@ class ConditionalOutputSpec extends Specification {
                     ]
                 },
                 "type": "PUT"
-            }											
+            }
         ]
     }
     '''
@@ -150,7 +150,7 @@ class ConditionalOutputSpec extends Specification {
                     ]
                 },
                 "type": "PUT"
-            }											
+            }
         ]
     }
     '''
@@ -171,7 +171,7 @@ class ConditionalOutputSpec extends Specification {
                     ]
                 },
                 "type": "PUT"
-            }											
+            }
         ]
     }
     '''

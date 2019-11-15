@@ -1,8 +1,8 @@
 {
-	"some-string": "${abc}",
-	"some-int": "${def}",
-	"explicit-big-int": "${mno}",
-	"explicit-big-string": "${pqr}",
-	"zero-int": "${zero-int}",
-	"zero-string": "${zero-string}"
+  "some-string": "${abc}",
+  "some-int": "${def}",
+  "explicit-big-int": "${mno}",
+  "explicit-big-string": "${pqr}",
+  "zero-int": "${zero-int}",
+  "zero-string": "${zero-string}"
 }

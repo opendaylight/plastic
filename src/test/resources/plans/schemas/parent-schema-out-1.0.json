@@ -1,4 +1,4 @@
 {
   "important": "${some-value}",
-  "details": [ "${my-children[*]}" ]
+  "details": ["${my-children[*]}"]
 }

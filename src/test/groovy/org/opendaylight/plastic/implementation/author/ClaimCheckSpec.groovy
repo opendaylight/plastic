@@ -69,7 +69,7 @@ class ClaimCheckSpec extends Specification {
         {
             "abc": {
                 "items": [
-                    { 
+                    {
                         "A": 1
                     },
                     {
@@ -85,7 +85,7 @@ class ClaimCheckSpec extends Specification {
         {
             "abc": {
                 "items": [
-                    { 
+                    {
                         "A": 1
                     },
                     "\${CLAIMCHECK[1]}"
@@ -107,7 +107,7 @@ class ClaimCheckSpec extends Specification {
         {
             "abc": {
                 "items": {
-                    "key1": { 
+                    "key1": {
                         "A": 1
                     },
                     "key2": {
@@ -123,7 +123,7 @@ class ClaimCheckSpec extends Specification {
         {
             "abc": {
                 "items": {
-                    "key1": { 
+                    "key1": {
                         "A": 1
                     },
                     "\${CLAIMCHECK[key2]}" : {

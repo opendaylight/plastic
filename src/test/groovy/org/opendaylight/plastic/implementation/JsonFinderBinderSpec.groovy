@@ -77,10 +77,10 @@ class JsonFinderBinderSpec extends Specification {
     def array2Payload() {
         '''
         {
-            "components": [ 
-            { "address": "1.2.3.4" }, 
-            { "address": "5.6.7.8" }, 
-            { "address": "9.10.11.12" } 
+            "components": [
+            { "address": "1.2.3.4" },
+            { "address": "5.6.7.8" },
+            { "address": "9.10.11.12" }
             ]
         }
         '''
@@ -99,15 +99,15 @@ class JsonFinderBinderSpec extends Specification {
     def array3Payload() {
         '''
         {
-            "components-1": [ 
+            "components-1": [
                 "1.2.3.4",
                 "5.6.7.8",
-                "9.10.11.12" 
+                "9.10.11.12"
             ],
-            "components-2": [ 
+            "components-2": [
                 "1.2.3.4",
                 "5.6.7.8",
-                "9.10.11.12", 
+                "9.10.11.12",
                 "13.14.15.16"
             ]
         }
@@ -117,10 +117,10 @@ class JsonFinderBinderSpec extends Specification {
     def array3Model() {
         '''
         {
-            "components-1": [ 
+            "components-1": [
                 "${VAL1[*]}"
             ],
-            "components-2": [ 
+            "components-2": [
                 "${VAL2[*]}"
             ]
         }
@@ -532,9 +532,9 @@ class JsonFinderBinderSpec extends Specification {
         given:
         String spayload = '''
         [
-            "1.2.3.4", 
-            "5.6.7.8", 
-            "9.10.11.12" 
+            "1.2.3.4",
+            "5.6.7.8",
+            "9.10.11.12"
         ]
         '''
         String smodel = '''
@@ -557,9 +557,9 @@ class JsonFinderBinderSpec extends Specification {
         given:
         String spayload = '''
         [
-            { "address": "1.2.3.4" }, 
-            { "address": "5.6.7.8" }, 
-            { "address": "9.10.11.12" } 
+            { "address": "1.2.3.4" },
+            { "address": "5.6.7.8" },
+            { "address": "9.10.11.12" }
         ]
         '''
         String smodel = '''

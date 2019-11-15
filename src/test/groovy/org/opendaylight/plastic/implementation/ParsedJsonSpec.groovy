@@ -22,14 +22,14 @@ class ParsedJsonSpec extends Specification {
     ParsedJson asParsed(String strm) {
         new ParsedJson(asBoundSchema(strm))
     }
-	
+
 	def "input is xml"() {
 		when:
 		new ParsedJson(asBoundSchema('<main><a>something</a></main>'))
 		then:
 		thrown JsonFormat.JSONParseException
 	}
-	
+
 	def "input is not xml or json"() {
 		when:
 		new ParsedJson(asBoundSchema('test{ "abc": [ { "value": "a" }, { "value": "b" }, { "value": "c" } ] }'))
@@ -117,5 +117,5 @@ class ParsedJsonSpec extends Specification {
         then:
         cloned1.parsed == cloned2.parsed
         cloned1.parsed != mutated.parsed
-    }	
+    }
 }

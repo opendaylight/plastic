@@ -40,12 +40,12 @@ class ClassifierLoaderSpec extends Specification {
         package unit.test
         import org.opendaylight.plastic.implementation.SimpleClassifier
 
-        class ${clName} extends SimpleClassifier 
+        class ${clName} extends SimpleClassifier
         {
-            String classify(Object parsedPayload) 
+            String classify(Object parsedPayload)
             {
-                "test" 
-            } 
+                "test"
+            }
         }
     """
 
@@ -53,14 +53,14 @@ class ClassifierLoaderSpec extends Specification {
         import org.opendaylight.plastic.implementation.PlanningClassifier
         import org.opendaylight.plastic.implementation.Schema
         import org.opendaylight.plastic.implementation.TranslationPlanLite
-        
-        class ${clName} extends PlanningClassifier 
+
+        class ${clName} extends PlanningClassifier
         {
-            TranslationPlanLite classify(Schema parsedPayload, TranslationPlanLite plan) 
+            TranslationPlanLite classify(Schema parsedPayload, TranslationPlanLite plan)
             {
                 plan.resolveUsing("test")
-                plan 
-            } 
+                plan
+            }
         }
     """
 
