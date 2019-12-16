@@ -181,6 +181,16 @@ class MoVariablesSpec extends Specification {
         thrown(PlasticException)
     }
 
+    def "a morpher array item can be added"() {
+        given:
+        Map original = ['a[0]': '0', 'a[1]': '1']
+        MoArray instance = new MoArray("a[*]", original)
+        when:
+        instance.add("2")
+        then:
+        original['a[2]'] == "2"
+    }
+
     def "morpher array item can be gotten"() {
         given:
         Map original = ['a[0]': '0', 'a[1]': '1', 'a[2]': '2']
@@ -251,6 +261,16 @@ class MoVariablesSpec extends Specification {
         MoArray array = vars.newArray("aa[*]", src.size())
         then:
         array.size() == 3
+    }
+
+    def "array can be created from an existing list"() {
+        given:
+        MoVariables vars = new MoVariables(['a[0]':  '0', 'a[1]':  '1', 'a[2]':  '2', 'b': '3', 'c': '4'])
+        List values = [ 10, 20, 30, 40, 50 ]
+        when:
+        MoArray array = vars.newArray("d[*]", values)
+        then:
+        array.size() == values.size()
     }
 
     def "array can act like a writable built-in list"() {

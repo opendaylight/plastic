@@ -189,7 +189,7 @@ class JsonValuesInjectorSpec extends Specification {
         model.description == 'June Bug is 25 years old (alive: true)'
     }
 
-    def "an array of scalar values is expanded properly"() {
+    def "a simple array of scalar values is expanded properly"() {
         given:
         def bound = ['ADDR[1]': "1.2.3.4",
                      'ADDR[2]': "5.6.7.8",
@@ -205,6 +205,29 @@ class JsonValuesInjectorSpec extends Specification {
 
         then:
         payloadAndOutput.addresses == [ "1.2.3.4", "5.6.7.8", "9.10.11.12" ]
+    }
+
+    def "a multi-variable array of scalar values is expanded properly"() {
+        given:
+        def bound = ['ADDR[1]': "1.2.3.4",
+                     'ADDR[2]': "5.6.7.8",
+                     'ADDR[3]': "9.10.11.12"
+        ]
+        Object payloadAndOutput = new JsonSlurper().parseText('''
+        {
+            "addresses": [ "AAA-${ADDR[*]}", "BBB-${ADDR[*]}" ]
+        }
+        ''')
+        when:
+        instance.inject(bound, payloadAndOutput, danglingInputs, danglingOutputs)
+
+        then:
+        payloadAndOutput.addresses == [ "AAA-1.2.3.4",
+                                        "AAA-5.6.7.8",
+                                        "AAA-9.10.11.12",
+                                        "BBB-1.2.3.4",
+                                        "BBB-5.6.7.8",
+                                        "BBB-9.10.11.12" ]
     }
 
     def "an array of scalar values is can result in an empty expansion without error"() {
@@ -247,6 +270,41 @@ class JsonValuesInjectorSpec extends Specification {
                 [ "address" : "1.2.3.4", "extra" : "foobar" ],
                 [ "address" : "5.6.7.8", "extra" : "foobar" ],
                 [ "address" : "9.10.11.12", "extra" : "foobar"]
+        ]
+    }
+
+    def "a mulitiple-variable array of object values is expanded properly"() {
+        given:
+        def bound = ['ADDR[1]': "1.2.3.4",
+                     'ADDR[2]': "5.6.7.8",
+                     'ADDR[3]': "9.10.11.12",
+                     "EXTRA" : "foobar"
+        ]
+        Object payloadAndOutput = new JsonSlurper().parseText('''
+        {
+            "components": [
+                { 
+                  "address": "AA-${ADDR[*]}",
+                  "extra": "AA-${EXTRA}"
+                },
+                { 
+                  "address": "BB-${ADDR[*]}",
+                  "extra": "BB-${EXTRA}"
+                }
+            ]
+        }
+        ''')
+        when:
+        instance.inject(bound, payloadAndOutput, danglingInputs, danglingOutputs)
+
+        then:
+        payloadAndOutput.components == [
+                [ "address" : "AA-1.2.3.4", "extra" : "AA-foobar" ],
+                [ "address" : "AA-5.6.7.8", "extra" : "AA-foobar" ],
+                [ "address" : "AA-9.10.11.12", "extra" : "AA-foobar"],
+                [ "address" : "BB-1.2.3.4", "extra" : "BB-foobar" ],
+                [ "address" : "BB-5.6.7.8", "extra" : "BB-foobar" ],
+                [ "address" : "BB-9.10.11.12", "extra" : "BB-foobar"]
         ]
     }
 

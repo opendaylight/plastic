@@ -51,6 +51,12 @@ class MoVariables {
         newArray(newSlice, len, "")
     }
 
+    MoArray newArray(String newSlice, List values) {
+        MoArray array = newArray(newSlice, values.size(), "")
+        array.set(values)
+        array
+    }
+
     boolean contains(String key) {
         bindings.containsKey(key)
     }
@@ -183,9 +189,7 @@ class MoArray {
      */
     void putAt(int index, Object value) {
         throwIfInvalidIndex(index)
-        String newVar = variables.generateOneIndexed(sliceName, index)
-        bindings.put(newVar, value)
-        keys.add(newVar)
+        forcePutAt(index, value)
     }
 
     void set(List values) {
@@ -202,6 +206,11 @@ class MoArray {
         }
     }
 
+    void add(Object value) {
+        int size = bindings.size();
+        forcePutAt(size, value)
+    }
+
     private void throwIfInvalidIndex(int index) {
         if (index >= keys.size()) {
             throw new PlasticException(ExceptId, "Index ${index} is too large for array ${this.sliceName} (that has size ${this.size()})")
@@ -212,4 +221,11 @@ class MoArray {
         if (!variables.isGenericIndexed(variable))
             throw new PlasticException(ExceptId, "Expected a genericly indexed variable name (like \${abc[*]}) instead of ${variable}")
     }
+
+    private void forcePutAt(int index, Object value) {
+        String newVar = variables.generateOneIndexed(sliceName, index)
+        bindings.put(newVar, value)
+        keys.add(newVar)
+    }
+
 }
