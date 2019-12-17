@@ -260,41 +260,52 @@ class JsonValuesInjector {
                 Triple tos = parentCollections.peek()
                 List marked = tos.modelAsList()
 
-                todos.add({ marked.remove(0) })
-
-                def member = marked[0]
-
-                // this indexed variable is a sub-member of an array of objects
-                // (should not be an array of arrays)
-
-                if (isCollection(member)) {
-                    List matchedIndices = tos.indices()
-                    matchedIndices.each { String index ->
-                        def cloned = deepCopy(member)
-                        recursivelyReplace(cloned,
-                                vars.genericIndexPattern(),
-                                index)
-                        todos.add({
-                            this.walkTheModel(inValues, cloned, parentCollections, danglingOutputVars,
-                                    foundInputVars, todos)
-                            marked.add(cloned)
-                        })
-                    }
+                marked.each {
+                    todos.add({
+                        marked.remove(0)
+                    })
                 }
 
-                // this indexed variable is a member of an array of scalars, so
-                // add de-indexed variables the end of array then walk the
-                // array again (to handle multiple variables in a single slot
+                marked.each { member ->
 
-                else {
-                    List<String> matched = tos.matchedVars
-                    matched.each { String varName  ->
-                        todos.add({ marked.add(vars.adorn(varName)) })
+                    // this indexed variable is a sub-member of an array of objects
+                    // (should not be an array of arrays)
+
+                    if (isCollection(member)) {
+                        List matchedIndices = tos.indices()
+                        matchedIndices.each { String index ->
+                            def cloned = deepCopy(member)
+                            recursivelyReplace(cloned,
+                                    vars.genericIndexPattern(),
+                                    index)
+                            todos.add({
+                                this.walkTheModel(inValues, cloned, parentCollections, danglingOutputVars,
+                                        foundInputVars, todos)
+                                marked.add(cloned)
+                            })
+                        }
                     }
-                    todos.add({
-                        this.walkTheModel(inValues, marked, parentCollections, danglingOutputVars,
-                                foundInputVars, todos)
-                    })
+
+                    // this indexed variable is a member of an array of scalars, so
+                    // add de-indexed variables the end of array then walk the
+                    // array again (to handle multiple variables in a single slot
+
+                    else {
+                        String templateValue = member.toString()
+                        String genericSrc = tos.genericVar
+
+                        List<String> matched = tos.matchedVars
+                        matched.each { String varName ->
+                            todos.add({
+                                String specific = templateValue.replace(genericSrc, varName)
+                                marked.add(specific);
+                            })
+                        }
+                        todos.add({
+                            this.walkTheModel(inValues, marked, parentCollections, danglingOutputVars,
+                                    foundInputVars, todos)
+                        })
+                    }
                 }
             }
 
