@@ -43,20 +43,8 @@ class JsonFinderBinder {
         buildVariablesToPaths(model, varPaths, defaults)
         Map<String,Object> boundVars = fetchVarToValues(varPaths, payload)
 
-        // TODO: seems like this rummaging around can be moved into Bindings
         Bindings bindings = new Bindings(boundVars)
-        boundVars.each { String k, Object v ->
-            if (v == null) {
-                boundVars[k] = defaults[k]
-                if (boundVars[k] == null) {
-                    Variables var = new Variables()
-                    String generic = var.generifyIndex(k)
-                    boundVars[k] = defaults[generic]
-                }
-                if (boundVars[k] != null)
-                    bindings.defaultWasUsed(k)
-            }
-        }
+        bindings.applyDefaults(defaults)
         bindings
     }
 

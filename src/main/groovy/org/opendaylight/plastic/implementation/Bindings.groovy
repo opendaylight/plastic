@@ -66,7 +66,7 @@ class Bindings {
         }
     }
 
-    private void defaultWasUsed(String varName) {
+    void defaultWasUsed(String varName) {
         defaultUsed.add(varName)
     }
 
