@@ -13,6 +13,7 @@ package org.opendaylight.plastic.implementation
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import org.slf4j.Logger
+import spock.lang.Ignore
 import spock.lang.Specification
 
 class JsonFinderBinderSpec extends Specification {
@@ -186,12 +187,12 @@ class JsonFinderBinderSpec extends Specification {
         def model = slurper.parseText(modelJson)
 
         when:
-        Map varPaths = [:]
+        Map pathVars = [:]
         Map varVals = [:]
-        instance.buildVariablesToPaths(model, varPaths, varVals)
+        instance.buildPathsToVariables(model, pathVars, varVals)
 
         then:
-        varPaths == ['uni-id': 'uni.[].uni-id']
+        pathVars.keySet() == [ 'uni.[].uni-id' ] as Set
     }
 
     def "variables are bound to paths that can contain dots"() {
@@ -207,24 +208,23 @@ class JsonFinderBinderSpec extends Specification {
         '''
         def model = slurper.parseText(modelJson)
         when:
-        Map varPaths = [:]
+        Map pathVars = [:]
         Map varVals = [:]
-        instance.buildVariablesToPaths(model, varPaths, varVals)
+        instance.buildPathsToVariables(model, pathVars, varVals)
 
         then:
-        varPaths == ['uni-1': 'uni\\.verse.[].uni\\.verse-id']
+        pathVars.keySet() == [ 'uni\\.verse.[].uni\\.verse-id' ] as Set
     }
 
     def "variables bound to paths fetch their values from a payload"() {
         given:
-        def varPaths = [:]
-        varPaths['uni-id'] = 'uni.[].uni-id'
+        def pathVars = ['uni.[].uni-id': new SimpleVariableBinder('uni-id')]
 
         def payloadJson = testPayload()
         def payload = slurper.parseText(payloadJson)
 
         when:
-        def boundVars = instance.fetchVarToValues(varPaths, payload)
+        def boundVars = instance.fetchVarToValues(pathVars, payload)
 
         then:
         boundVars['uni-id'] == UNI_ID
@@ -237,7 +237,7 @@ class JsonFinderBinderSpec extends Specification {
         def payload = slurper.parseText(payloadJson)
 
         JsonFinderBinder.Recorder recorder = new JsonFinderBinder.Recorder()
-        recorder.useKey("test-variable")
+        recorder.useBinder(new SimpleVariableBinder("test-variable"))
         when:
         instance.getPathValue(path, payload, recorder)
 
@@ -261,13 +261,50 @@ class JsonFinderBinderSpec extends Specification {
         def payload = slurper.parseText(payloadJson)
         and:
         JsonFinderBinder.Recorder recorder = new JsonFinderBinder.Recorder()
-        recorder.useKey("test-variable")
+        recorder.useBinder(new SimpleVariableBinder("test-variable"))
 
         when:
         instance.getPathValue(path, payload, recorder)
 
         then:
         recorder.bindings()["test-variable"] == "123"
+    }
+
+    def "detect * being bound to various sized arrays"() {
+        given:
+        String jpayload = '''
+        {
+            "array1": [
+                {
+                    "member": "123"
+                }
+            ],
+            "array2": [
+                {
+                    "member": "456",
+                },
+                {
+                    "member": "789"
+                }
+            ]
+        }
+        '''
+        and:
+        def path1 = 'array1.[].member'
+        def path2 = 'array2.[].member'
+        and:
+        def payload = slurper.parseText(jpayload)
+        and:
+        JsonFinderBinder.Recorder recorder = new JsonFinderBinder.Recorder()
+
+        when:
+        ['one': path1, 'two': path2].each { String name, String path ->
+            recorder.useBinder (new SimpleVariableBinder("$name[*]"))
+            instance.getPathValue(path, payload, recorder)
+        }
+
+        then:
+        !recorder.hasUniformValues()
     }
 
     def "an scalar variable in an array is found in a model and its value is bound"() {
@@ -340,6 +377,19 @@ class JsonFinderBinderSpec extends Specification {
         then:
         found["aa"] == "123"
         found["bb"] == "123"
+    }
+
+    def "multiple values on the same input are warned about"() {
+        given:
+        def model = slurper.parseText(multivarsModel())
+        def payload = slurper.parseText(multivarsPayload())
+        and:
+        instance.logger = mockLogger
+        when:
+        instance.process(model, payload).bindings()
+
+        then:
+        1 * instance.logger.warn({ it =~ "MULT-IN-VARS" }, _)
     }
 
     def "large integers are not emitted in scientific notation"() {
@@ -553,6 +603,21 @@ class JsonFinderBinderSpec extends Specification {
         found == ["ADD[0]": "1.2.3.4", "ADD[1]": "5.6.7.8", "ADD[2]": "9.10.11.12"]
     }
 
+    def "an empty array should not create fake values (at [0])"() {
+        given:
+        String jpayload = '[]'
+        String jmodel = '[ "${ADD[*]}" ]'
+
+        def model = slurper.parseText(jmodel)
+        def payload = slurper.parseText(jpayload)
+
+        when:
+        def found = instance.process(model, payload).bindings()
+
+        then:
+        found.isEmpty()
+    }
+
     def "a top level array of hashes can have hash members bound"() {
         given:
         String spayload = '''
@@ -589,11 +654,41 @@ class JsonFinderBinderSpec extends Specification {
         then:
         found.size() == 4
         (0..3).each { index ->
-            def key = "object-list[${index}]"
+            String key = "object-list[${index}]"
             def entry = found[key]
             entry instanceof Map
             entry.key == "complex"
             entry.value == expectedNestedValues[index]
         }
+    }
+
+    def "wildcarding for matches is supported"() {
+        given:
+        String jpayload = '''
+        [
+            { "address": "1 2" },
+            { "address": "3 4" },
+            { "address": "5 6" }
+        ]
+        '''
+        String jmodel = '''
+        [
+            { "address": "|${LEFT[*]} ${RIGHT[*]}|" }
+        ]
+        '''
+
+        def model = slurper.parseText(jmodel)
+        def payload = slurper.parseText(jpayload)
+
+        when:
+        def found = instance.process(model, payload).bindings()
+
+        then:
+        found == ["LEFT[0]":  "1",
+                  "RIGHT[0]": "2",
+                  "LEFT[1]":  "3",
+                  "RIGHT[1]": "4",
+                  "LEFT[2]":  "5",
+                  "RIGHT[2]": "6"]
     }
 }

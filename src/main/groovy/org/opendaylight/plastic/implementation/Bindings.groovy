@@ -39,6 +39,13 @@ class Bindings {
         }
     }
 
+    // Put a variable entry with the given value. A null for the value
+    // means that the variable is "missing" (expected but not present).
+    //
+    void set(String name, Object value) {
+        bound[name] = value
+    }
+
     // Put any specific values from defaults into any variables which have null values (are missing)
     //
     void applyDefaults(Map<String,Object> defaults) {
@@ -72,6 +79,16 @@ class Bindings {
 
     Map<String,Object> bindings() {
         return bound
+    }
+
+    // Return any bound value (or null)
+    //
+    Object get(String name) {
+        bound[name]
+    }
+
+    boolean isEmpty() {
+        bound.isEmpty()
     }
 
     private void putIfMissingOrNull(String key, Object value) {

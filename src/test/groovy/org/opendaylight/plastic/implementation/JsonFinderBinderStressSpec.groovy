@@ -14,7 +14,11 @@ import groovy.json.JsonSlurper
 import spock.lang.Ignore
 import spock.lang.Specification
 
-@Ignore // don't slow down unit tests
+// To run this stress test from the command line, use
+//     mvn -Dtest=JsonFinderBinderStressSpec test
+// Note we more reliable micro-benchmarking!
+//     https://www.baeldung.com/java-microbenchmark-harness
+
 class JsonFinderBinderStressSpec extends Specification {
 
     JsonSlurper slurper = new JsonSlurper()
@@ -53,18 +57,20 @@ class JsonFinderBinderStressSpec extends Specification {
 
         when:
         long N = 5000000
+
+        // warm up - hotspot optimization, cache filling, etc
+
+        for(long i = 0; i< N/5; i++) {
+            instance.process(model, payload)
+        }
+
         int elapsed = benchmark {
             for(long i = 0; i< N; i++) {
                 instance.process(model, payload)
             }
         }
-        println(">>>>> PREVIOUS:")
-        println(">>>>> Translations: 5000000   Elapsed: 100 sec (before @CompileStatic)\n")
-        println(">>>>> Translations: 5000000   Elapsed:  45 sec (after @CompileStatic)\n")
-        println(">>>>> Translations: 5000000   Elapsed:  36 sec (after getElementValue() optimization)\n")
-        println(">>>>> Translations: 5000000   Elapsed:  34 sec (after replacing currying)\n")
-        println(">>>>> CURRENT:")
-        println(">>>>> Translations: ${N}   Elapsed(msec): ${elapsed}   Per-sec: ${1000.0*N/elapsed}\n\n")
+
+        println("\n\n>>>>>> ${this.class.simpleName}.process(...): Iterations: ${N}   Elapsed: ${elapsed} msec  Per-sec: ${1000.0*N/elapsed}  Acceptable ~ 42 sec<<<<<<\n\n")
         then:
         true
     }

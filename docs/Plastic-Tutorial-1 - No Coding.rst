@@ -132,13 +132,13 @@ To use the utility, make sure all components in the list above are in a director
 properties file to a name of your choice like test.properties and edit that new file. An example
 contents to that file is::
 
-  in-schema-name = lci-input
+  in-schema-name = lmn-input
   in-schema-version = 1.0
   in-schema-type = json
-  out-schema-name = lci-output
+  out-schema-name = lmn-output
   out-schema-version = 1.0
   out-schema-type = json
-  payload-file = lci-input-payload.json
+  payload-file = lmn-input-payload.json
   defaults-file = my-defaults.json
 
 The parameters are fairly self-explanatory for experienced morpher writers. Note that the
@@ -608,9 +608,137 @@ Some caveats
 - The arrayed variables feature has not been implemented for XML
 
 Note that there is more advanced authoring support, not covered here, that allows writing
-code that can conveniently manipulates these arrayed variables.
+code that can conveniently manipulates these arrayed variables (look for MoArray).
+
+In all of the previous examples, the use of arrayed variables in the output schema assumed that there was only
+a single element to expand. But you can have more complex usage where you have multiple elements to expand
+per iteration of the asterisk binding. Consider the example below, and assume that there are 100 elements bound
+to the asterisk.
+
+.. code-block:: JSON
+
+  {
+    "my-objects": [
+      {
+        "address": "${addr[*]}"
+      }
+    ]
+  }
+
+The "my-objects" array is the parent collection for the asterisk and it has only a single object (which has an
+"address") to expand. When the output is created, the "my-objects" array will have 100 elements. But the output
+schema below will work too, resulting in 300 elements!
+
+
+.. code-block:: JSON
+
+  {
+    "my-objects": [
+      {
+        "address": "${addr[*]}"
+      },
+      {
+        "length": "${pref-len[*]}"
+      },
+      {
+        "name": "${name[*]}"
+      }
+    ]
+  }
+
 
 To continue the tutorial, see the separate part 2.
+
+Chapter 7 - Pattern Matching
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Schema designers often need to parse apart an input field to find a substring or two to assign as variable
+values. If the needs are simple, this can be done in the schema rather than writing any morpher logic.
+This capability uses the wildcarding feature.
+
+The wildcarding feature may be used only on the input schema. It is a way to match against an input string and
+to assign substrings to particular variables. This is a distant cousin of Java's regex for those of you who are
+versed in programming.
+
+Lets look at an example to explain the feature. Here is an example input value that might be found on an incoming
+payload.
+
+.. code-block:: Java
+
+  "one/two three"
+
+Here is an example showing usage in an input schema used to match against that payload.
+Once the payload is parsed, then ${abc} will be "one" and ${def} will be "two three".
+
+.. code-block:: Java
+
+  "|${abc}/${def}|"
+
+Things to note here:
+
+- Wildcarding must begin and end with a vertical bar | which represent the start and end of the candidate string
+- There may be one or more variables defined within that wildcard expression
+- Variable values land on "word boundaries", including numbers, punchtuation, whitespace, etc
+- There can be literal character values like the slash / above that must match exactly with the candidate string
+- If the candidate does not match, then the entire translation results in an error
+
+.. code-block:: Java
+
+  "|*${abc}/${def}*|"
+
+  "one two/three four"
+
+  ${abc} = "two"
+  ${def} = "three"
+
+In the above example, you can see the usage or the wildcard aka asterisk. The asterisk is a stand-in for any number
+of characters in the string that can be skipped (not part of the variable value). The asterisk is greedy,
+meaning that it matches as much of the string as possible. The literal slash / matches the one in the payload and
+kind of "anchors" the wildcard expression to the candidate string.
+
+.. code-block:: Java
+
+  "|*${abc} ${def}*|"
+
+  "one two/three four"
+
+  ${abc} = "three"
+  ${def} = "four"
+
+The above example uses the space as an "anchor". Because asterisks are greedy and because there are a couple of
+spaces that can be matched against, the wildcard logic matches the last one (rather than the first one).
+
+.. code-block:: Java
+
+  "|* ${abc}/${def} *|"
+
+  "one two/three four"
+
+  ${abc} = "two"
+  ${def} = "three"
+
+In the above example, the wildcard expression has two literal spaces which match exactly the spaces in the
+candidate string, anchoring it against the candidate, so that the wanted values are "two" and "three".
+
+.. code-block:: Java
+
+  "|${abc} *|"
+  "one two/three four"
+  ${abc} = "one"
+
+In the above example, "abc" matches to the first word "one". Although asterisks are greedy, the variable values
+are not. So the literal space anchors to the first space in the candidate.
+
+.. code-block:: Java
+
+  "|* ${abc}|"
+  "one two/three four"
+  ${abc} = "four"
+
+In the above example, the greedy asterisk matches everything till it hits the literal space, leaving the
+variable value to be the last word.
+
+You can use the command line runner and a very simple input/output schema to test our your wildcard expressions.
 
 Addenda
 ^^^^^^^

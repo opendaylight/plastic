@@ -70,7 +70,7 @@ class ClassifierLoaderSpec extends Specification {
 
     def "a normal (resolved) version schema does not need classification"() {
         given:
-        VersionedSchema existingSchema = new VersionedSchema("lci-input", "1.0", "json")
+        VersionedSchema existingSchema = new VersionedSchema("lmn-input", "1.0", "json")
         TranslationPlanLite existing = new TranslationPlanLite(existingSchema, existingSchema)
         when:
         instance.resolve(existing, payload)

@@ -162,4 +162,18 @@ class VariablesSpec extends Specification {
         "\${a=1}"       | "a"  | "1"
         "\${a=   1   }" | "a"  | "   1   "
     }
+
+    @Unroll
+    def "raw variable names can be found in #input"() {
+        given:
+        Variables instance = new Variables(input)
+        expect:
+        instance.getRawNames() == expected
+        where:
+        input           | expected
+        ''              | []
+        '\${a}'         | ['\${a}']
+        '\${a}\${b}'    | ['\${a}', '\${b}']
+        '\${a[*]}\${b}' | ['\${a[*]}', '\${b}']
+    }
 }

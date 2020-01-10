@@ -30,6 +30,16 @@ class BindingsSpec extends Specification {
         instance.bindings() == [ 'a': 1, 'b': [ 0, 1 ], 'c': null, 'd': null ]
     }
 
+    def "variables with their values can be injected"() {
+        given:
+        Map<String,Object> map = [ 'a': 1, 'b': [ 0, 1 ] ]
+        Bindings instance = new Bindings(map)
+        when:
+        instance.set('c', '012')
+        then:
+        instance.bindings() == [ 'a': 1, 'b': [ 0, 1 ], 'c': '012' ]
+    }
+
     def "missing variables can be assigned from defaults"() {
         given:
         Map<String,Object> map = [ 'a': 1, 'b': [ 0, 1 ], 'c': null, 'd': null ]

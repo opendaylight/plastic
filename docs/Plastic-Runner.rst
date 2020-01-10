@@ -25,13 +25,13 @@ To use the utility, make sure all components in the list above are in a director
 properties file to a name of your choice like test.properties and edit that new file. An example
 contents to that file is::
 
-  in-schema-name = lci-input
+  in-schema-name = lmn-input
   in-schema-version = 1.0
   in-schema-type = json
-  out-schema-name = lci-output
+  out-schema-name = lmn-output
   out-schema-version = 1.0
   out-schema-type = json
-  payload-file = lci-input-payload.json
+  payload-file = lmn-input-payload.json
   defaults-file = my-defaults.json
 
 The parameters are fairly self-explanatory for experienced morpher writers. Note that the

@@ -17,8 +17,13 @@ import java.util.regex.Pattern
 @CompileStatic
 class Variables {
 
-    void toEach(Closure cs) {
-        foundNames.each { Object k, Object v -> cs(k,v) }
+    static class Finding {
+        final String raw
+        final Object value
+        Finding(String raw, Object value) {
+            this.raw = raw
+            this.value = value
+        }
     }
 
     private static final Pattern envelopePattern = ~/\$\{(.+?)\}/
@@ -29,7 +34,7 @@ class Variables {
     private static final String[] emptyStrings = new String[0]
 
     private String raw = ""
-    private Map<String,Object> foundNames = [:]
+    private Map<String,Finding> foundNames = [:]
     private String first = ""
 
     Variables() {
@@ -42,13 +47,17 @@ class Variables {
     }
 
     Variables(String[] candidates) {
-        candidates.each { String s -> foundNames[s] = null }
+        candidates.each { String s -> foundNames[s] = (Finding)null }
         initialized()
     }
 
     Variables(List<String> candidates) {
-        candidates.each { String s -> foundNames[s] = null }
+        candidates.each { String s -> foundNames[s] = (Finding)null }
         initialized()
+    }
+
+    void toEach(Closure cs) {
+        foundNames.each { Object k, Finding f -> cs(k,f.value) }
     }
 
     private void initialized() {
@@ -56,20 +65,22 @@ class Variables {
         first = foundNames.isEmpty() ? "" : foundNames.keySet().iterator().next()
     }
 
-    private Map<String,Object> parse(String candidates) {
+    private Map<String,Finding> parse(String candidates) {
 
         if (candidates.length() == 0)
             return [:]
 
         // Hotspot: avoid using regex parse if possible
 
+        // For speed, special case a simple single variable
+
         if (candidates.length() > 3) {
             if (candidates.startsWith('${') && candidates.endsWith('}')) {
                 int anotherDollar = candidates.indexOf('$', 1)
                 if (anotherDollar < 0) {
-                    candidates = candidates.substring(2, candidates.length()-1)
-                    String[] parts = candidates.split('=', 2)
-                    return [ (parts[0].trim()): parts.length > 1 ? (Object)parts[1] : (Object)null ]
+                    String inner = candidates.substring(2, candidates.length()-1)
+                    String[] parts = inner.split('=', 2)
+                    return [ (parts[0].trim()): new Finding(candidates, parts.length > 1 ? (Object)parts[1] : (Object)null) ]
                 }
             }
         }
@@ -77,13 +88,13 @@ class Variables {
         regexParse(candidates)
     }
 
-    private Map regexParse(String candidates) {
+    private Map<String,Finding> regexParse(String candidates) {
         def results = [:]
         def matcher = candidates =~ envelopePattern
         while (matcher.find()) {
             String blob = matcher.group(1)
             String[] parts = blob.split('=', 2)
-            results.put(parts[0].trim(), parts.length > 1 ? parts[1] : null)
+            results.put(parts[0].trim(), new Finding ('${'+parts[0]+'}', parts.length > 1 ? parts[1] : null))
         }
         results
     }
@@ -100,6 +111,10 @@ class Variables {
         foundNames.size() > 1
     }
 
+    Set<String> names() {
+        foundNames.keySet()
+    }
+
     String get() {
         first
     }
@@ -110,6 +125,13 @@ class Variables {
         sb.append("}")
         sb.toString()
     }
+
+    String unadorn(String candidate) {
+        if (candidate.startsWith('${') && candidate.endsWith('}'))
+            return candidate.substring(2, candidate.length()-1)
+        candidate
+    }
+
     // Matcher is the hotspot based on profiling
     boolean isIndexed(String candidate) {
         if (candidate.contains('[')) {
@@ -206,7 +228,7 @@ class Variables {
 
     boolean hasValue(String candidate) {
         if (foundNames.containsKey(candidate))
-            return (foundNames[candidate] != null)
+            return (foundNames[candidate].value != null)
 
         // avoiding regex for speed
 
@@ -219,13 +241,23 @@ class Variables {
             sb.append(candidate.substring(right))
             String generic = sb.toString()
             if (foundNames.containsKey(generic))
-                return (foundNames[generic] != null)
+                return (foundNames[generic].value != null)
         }
         false
     }
 
+    // TODO: ordering!!! names must be in order of appearance
+
+    List<String> getRawNames() {
+        List<String> results = []
+        foundNames.values().each { Finding f ->
+            results.add(f.raw)
+        }
+        results
+    }
+
     String getValue(String candidate) {
-        foundNames[candidate]
+        foundNames.containsKey(candidate) ? foundNames[candidate].value : null
     }
 
     @Override

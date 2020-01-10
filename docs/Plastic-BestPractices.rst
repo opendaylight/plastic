@@ -10,7 +10,6 @@ Plastic Best Practices
 ======================
 *Sep 27, 2019*
 
-
 - Always use a unique name for each morpher. They are all in the same namespace and
   will collide if they have the same name. Ideally the morpher class name will include
   trailing numbers to account for versioning. There is no error check for this yet.

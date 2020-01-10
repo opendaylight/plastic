@@ -32,33 +32,43 @@ class JsonFinderBinder {
         }
     }
 
+    static class NoMultipleVariables extends PlasticException {
+        String offender
+
+        NoMultipleVariables(String candidate) {
+            super("PLASTIC-MULT-IN-VARS", candidate)
+            this.offender = candidate
+        }
+    }
+
     private static final Pattern LONEDOT_REGEX = ~/(?<!\\)\./
 
     Bindings process(Object model, Object payload) {
         Preconditions.checkNotNull(model)
         Preconditions.checkNotNull(payload)
 
-        Map<String,String> varPaths = [:]
-        Map<String,Object> defaults = [:]
-        buildVariablesToPaths(model, varPaths, defaults)
-        Map<String,Object> boundVars = fetchVarToValues(varPaths, payload)
+        Map<String,VariablesBinder> pathVars = [:] // path associated to binder
+        Map<String,Object> defaults = [:] // variable name to variable value
+        buildPathsToVariables(model, pathVars, defaults)
+
+        Map<String,Object> boundVars = fetchVarToValues(pathVars, payload)
 
         Bindings bindings = new Bindings(boundVars)
         bindings.applyDefaults(defaults)
         bindings
     }
 
-    void buildVariablesToPaths(Object model, Map<String,String> seenPaths, Map<String,Object> seenVars) {
+    void buildPathsToVariables(Object model, Map<String,VariablesBinder> seenPaths, Map<String,Object> seenVars) {
         if (model instanceof Map) {
             pathsFromMap(model, seenPaths, seenVars, "")
         } else if (model instanceof List) {
             pathsFromList(model, seenPaths, seenVars, "[]")
         } else {
-            throw new UnsupportedModel("Model given is not a recognized type", model)
+            throw new UnsupportedModel("Given in-memory model is not a recognized type", model)
         }
     }
 
-    private void pathsFromMap(Map<String,Object> map, Map<String,String> seenPaths, Map<String,Object> seenVars, String path) {
+    private void pathsFromMap(Map<String,Object> map, Map<String,VariablesBinder> seenPaths, Map<String,Object> seenVars, String path) {
         map.each { String key, Object value ->
             if (value instanceof List) {
                 pathsFromList((List<Object>)value, seenPaths, seenVars, concatPath(path, protect(key), "[]"))
@@ -67,16 +77,34 @@ class JsonFinderBinder {
                 pathsFromMap((Map<String,Object>)value, seenPaths, seenVars, concatPath(path, protect(key)))
             }
             else if (value instanceof String || value instanceof GString) {
-                Variables vars = new Variables((String)value)
-                vars.toEach { String var, Object val ->
-                    seenPaths[(String)var] = concatPath(path, protect(key))
-                    seenVars[(String)var] = val
+                String fullpath = concatPath(path, protect(key))
+                String svalue = (String) value
+                if (WildCardMatcher.usesWildcarding(svalue)) {
+                    WildCardMatcher wild = new WildCardMatcher(svalue)
+                    seenPaths.put(fullpath, wild)
+                    wild.variables.toEach { String var, Object val ->
+                        seenVars[var] = val
+                    }
+                }
+                else {
+                    Variables vars = new Variables(svalue)
+                    if (vars.hasMultiple())
+                        logger.warn("PLASTIC-MULT-IN-VARS: {}", vars.raw())
+
+                    if (vars.isPresent()) {
+                        seenPaths.put(fullpath, new SimpleVariableBinder(vars.names()))
+                        vars.toEach { String var, Object val ->
+                            seenVars[var] = val
+                        }
+                    }
                 }
             }
         }
     }
 
-    private void pathsFromList(List<Object> list, Map<String,String> seenPaths, Map<String,Object> seenVars, String path) {
+    // TODO: tech debt - share the logic above and below rather than repeating
+
+    private void pathsFromList(List<Object> list, Map<String,VariablesBinder> seenPaths, Map<String,Object> seenVars, String path) {
         list.each { entry ->
             if (entry instanceof Map) {
                 pathsFromMap((Map<String,Object>)entry, seenPaths, seenVars, "$path")
@@ -85,10 +113,26 @@ class JsonFinderBinder {
                 pathsFromList((List<Object>)entry, seenPaths, seenVars, concatPath(path, "[]"))
             }
             else if (entry instanceof String || entry instanceof GString) {
-                Variables vars = new Variables((String)entry)
-                vars.toEach { String var, Object val ->
-                    seenPaths[var] = path
-                    seenVars[var] = val
+                String svalue = (String) entry
+                if (WildCardMatcher.usesWildcarding(svalue)) {
+                    WildCardMatcher wild = new WildCardMatcher(svalue)
+                    seenPaths.put(path, wild)
+                    wild.variables.toEach { String var, Object val ->
+                        seenVars[var] = val
+                    }
+                }
+                else {
+                    Variables vars = new Variables(svalue)
+
+                    if (vars.hasMultiple())
+                        logger.warn("PLASTIC-MULT-IN-VARS: {}", vars.raw())
+
+                    if (vars.isPresent()) {
+                        seenPaths.put(path, new SimpleVariableBinder(vars.names()))
+                        vars.toEach { String var, Object val ->
+                            seenVars[var] = val
+                        }
+                    }
                 }
             }
         }
@@ -101,7 +145,7 @@ class JsonFinderBinder {
     @PackageScope
     String concatPath(String... terms) {
         // Hotspot: used to use terms.grep { it }.join(".")
-        StringBuffer buffer = new StringBuffer()
+        StringBuilder buffer = new StringBuilder()
         for (String term : terms) {
             if (term != null && !term.isEmpty()) {
                 if (buffer.length() > 0)
@@ -111,6 +155,8 @@ class JsonFinderBinder {
         }
         buffer.toString()
     }
+
+    // For performance, avoid Integer boxing
 
     static class NamedCounters {
         static class Counter {
@@ -139,42 +185,42 @@ class JsonFinderBinder {
 
         private Map<String,Object> boundVars = [:]
         private NamedCounters seenVarCounts = new NamedCounters()
-        private String currentKey
-        private int currentKeyCount
+        private List<String> currentKeys = []
         private Map<String,Integer> sizes = [:]
+        private VariablesBinder binder
 
-        void useKey(String key) {
-            this.currentKey = key
-            this.currentKeyCount = 0
+        void useBinder(VariablesBinder binder) {
+            this.binder = binder
+            this.currentKeys = binder.names()
         }
 
         void recordFind(Object value) {
-            if (currentKey != null) {
+            Bindings results = binder.fetch(nullPrimitiveOrCollection(value))
+            for (String currentKey : currentKeys) {
                 int count = seenVarCounts.get(currentKey)
                 String newKey = currentKey.replace("[*]", "[${count}]")
-                boundVars[newKey] = nullPrimitiveOrCollection(value)
+                boundVars[newKey] = results.get(currentKey)
                 seenVarCounts.increment(currentKey)
-                currentKeyCount++
                 if (currentKey != newKey)
                     sizes[currentKey] = count+1
             }
         }
 
-        void unUseKey() {
-            if (currentKey != null) {
-                if (currentKeyCount == 0) {
+        void unUseBinder() {
+            Variables vars = new Variables()
+            for (String currentKey : currentKeys) {
+                if (seenVarCounts.get(currentKey) == 0) {
                     // An arrayed variable will have a key like "abc[*]" and if there is no dimension to the
                     // array (which is fine), it won't be found. We don't want to create a fake entry for [0]
                     // so protect against that.
-                    Variables vars = new Variables()
                     if (!vars.isGenericIndexed(currentKey)) {
                         recordFind(null)
                     }
                 }
-
-                currentKey = null
-                currentKeyCount = 0
             }
+
+            binder = null
+            currentKeys.clear()
         }
 
         Map<String,Object> bindings() {
@@ -183,11 +229,11 @@ class JsonFinderBinder {
 
         void validateConsistentArrayed() {
             if (!hasUniformValues(sizes)) {
-                logger.debug("CART-ARRAY-SIZES: the asterisk was bound to arrays of different sizes: " +  sizes.toString())
+                logger.debug("PLASTIC-ARRAY-SIZES: fyi the asterisk was bound to arrays of different sizes: " +  sizes.toString())
             }
         }
 
-        private boolean hasUniformValues(Map target) {
+        boolean hasUniformValues(Map target) {
             Iterator<Map.Entry> iterator = target.entrySet().iterator()
             Object firstValue = iterator.hasNext() ? iterator.next()?.getValue() : null
             Object different = target.find {
@@ -203,13 +249,19 @@ class JsonFinderBinder {
             different == null
         }
 
+        boolean hasUniformValues() {
+            hasUniformValues(sizes)
+        }
+
+        // TODO: re-order this by frequency, put String and GString near front of order, move to shared code
+
         // Explicitly converting scalar values to strings below to avoid automatic
         // representation of large integers as fixed point exponential format or
         // numeric 0 eventually being an empty string.
         //
         // This is also done in VersionedSchemaParsed.asDefaults()
 
-        private Object nullPrimitiveOrCollection(Object value) {
+        private static Object nullPrimitiveOrCollection(Object value) {
             if (value == null)
                 return value
             // Hotspot: used to use switch statement
@@ -242,14 +294,14 @@ class JsonFinderBinder {
     }
 
     @PackageScope
-    Map<String,Object> fetchVarToValues(Map<String,String> varPaths, Object payload) {
+    Map<String,Object> fetchVarToValues(Map<String,VariablesBinder> pathVars, Object payload) {
 
         Recorder recorder = new Recorder()
 
-        varPaths.each { String key, String path ->
-            recorder.useKey(key)
+        pathVars.each { String path, VariablesBinder binder ->
+            recorder.useBinder(binder)
             getPathValue(path, payload, recorder)
-            recorder.unUseKey()
+            recorder.unUseBinder()
         }
 
         recorder.validateConsistentArrayed()

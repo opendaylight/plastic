@@ -103,7 +103,7 @@ class ParsedJson extends VersionedSchemaParsed {
     Map fetchVariables() {
         Map foundPaths = [:]
         Map foundVars = [:]
-        finderBinder.buildVariablesToPaths(parsed, foundPaths, foundVars)
+        finderBinder.buildPathsToVariables(parsed, foundPaths, foundVars)
         foundVars
     }
 
