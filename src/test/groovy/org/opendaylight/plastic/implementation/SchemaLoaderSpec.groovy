@@ -57,20 +57,20 @@ class SchemaLoaderSpec extends Specification {
 
     def "returns an InputStream for a good JSON type schema"() {
         when:
-        def inStream = instance.locate(new VersionedSchema("uni-create", "1.0", "JSON"))
+        def inStream = instance.locate(new VersionedSchema("nui-create", "1.0", "JSON"))
 
         then:
         inStream.available() > 0
-        equals(inStream, 'inputs/uni-create-1.0.json')
+        equals(inStream, 'inputs/nui-create-1.0.json')
     }
 
     def "returns an InputStream for a good XML type schema"() {
         when:
-        def inStream = instance.locate(new VersionedSchema("uni-create-epm", "2.1", "XML"))
+        def inStream = instance.locate(new VersionedSchema("nui-create-epm", "2.1", "XML"))
 
         then:
         inStream.available() > 0
-        equals(inStream, 'outputs/uni-create-epm-2.1.xml')
+        equals(inStream, 'outputs/nui-create-epm-2.1.xml')
     }
 
 }

@@ -14,13 +14,13 @@ main_class="org.opendaylight.plastic.implementation.PlasticRunner"
 
 # Look locally (they are first, so have priority)
 
-cart_1=$(find . -name '*plastic*exec.jar') || ""
+cart_1=$(find . -name '*plastic*runner*.jar') || ""
 IFS=$'\n' carts_1=($cart_1)
 
 # Look in a standard installation area
 
 if [[ -d /opt/lumina/lsc ]]; then
-    cart_2=$(find /opt/lumina/lsc -name '*plastic*exec.jar')
+    cart_2=$(find /opt/lumina/lsc -name '*plastic*runner*.jar')
     IFS=$'\n' carts_2=($cart_2)
 else
     cart_2=""

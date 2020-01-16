@@ -65,7 +65,7 @@ class Variables {
         first = foundNames.isEmpty() ? "" : foundNames.keySet().iterator().next()
     }
 
-    private Map<String,Finding> parse(String candidates) {
+    Map<String,Finding> parse(String candidates) {
 
         if (candidates.length() == 0)
             return [:]

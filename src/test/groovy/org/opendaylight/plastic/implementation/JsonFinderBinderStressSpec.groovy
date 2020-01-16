@@ -16,8 +16,8 @@ import spock.lang.Specification
 
 // To run this stress test from the command line, use
 //     mvn -Dtest=JsonFinderBinderStressSpec test
-// Note we more reliable micro-benchmarking!
-//     https://www.baeldung.com/java-microbenchmark-harness
+
+@Ignore // deprecated by the micro-benchmark framework accessible at src/test/scripts/....benchmark
 
 class JsonFinderBinderStressSpec extends Specification {
 

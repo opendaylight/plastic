@@ -14,7 +14,7 @@ import spock.lang.Specification
 
 class PlanResolutionSpec extends Specification {
 
-    VersionedSchema someSchema = new VersionedSchema("uni-create-epnm", "2.1", "JSON")
+    VersionedSchema someSchema = new VersionedSchema("nui-create-epnm", "2.1", "JSON")
     TranslationPlanLite somePlan = new TranslationPlanLite(someSchema, someSchema)
 
     SchemaSource mockSchemaSource = Mock() {

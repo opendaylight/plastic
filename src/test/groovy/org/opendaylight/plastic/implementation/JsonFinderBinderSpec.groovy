@@ -27,7 +27,7 @@ class JsonFinderBinderSpec extends Specification {
 
     def testModel() {
         def builder = new JsonBuilder()
-        def uniModelEntries = [ [ "uni-id": "\${uni-id}" ] ]
+        def uniModelEntries = [ [ "nui-id": "\${nui-id}" ] ]
 
         builder {
             uni(uniModelEntries.each { entry ->
@@ -40,7 +40,7 @@ class JsonFinderBinderSpec extends Specification {
 
     def testPayload() {
         def builder = new JsonBuilder()
-        def uniModelEntries = [ [ "uni-id": "$UNI_ID" ] ]
+        def uniModelEntries = [ [ "nui-id": "$UNI_ID" ] ]
 
         builder {
             uni(uniModelEntries.each { entry ->
@@ -178,7 +178,7 @@ class JsonFinderBinderSpec extends Specification {
         def found = instance.process(model, payload).bindings()
 
         then:
-        found["uni-id"] == UNI_ID
+        found["nui-id"] == UNI_ID
     }
 
     def "variables are bound to paths"() {
@@ -192,7 +192,7 @@ class JsonFinderBinderSpec extends Specification {
         instance.buildPathsToVariables(model, pathVars, varVals)
 
         then:
-        pathVars.keySet() == [ 'uni.[].uni-id' ] as Set
+        pathVars.keySet() == [ 'uni.[].nui-id' ] as Set
     }
 
     def "variables are bound to paths that can contain dots"() {
@@ -201,7 +201,7 @@ class JsonFinderBinderSpec extends Specification {
         {
             "uni.verse": [
                 {
-                    "uni.verse-id": "${uni-1}"
+                    "uni.verse-id": "${nui-1}"
                 }
             ]
         }
@@ -218,7 +218,7 @@ class JsonFinderBinderSpec extends Specification {
 
     def "variables bound to paths fetch their values from a payload"() {
         given:
-        def pathVars = ['uni.[].uni-id': new SimpleVariableBinder('uni-id')]
+        def pathVars = ['uni.[].nui-id': new SimpleVariableBinder('nui-id')]
 
         def payloadJson = testPayload()
         def payload = slurper.parseText(payloadJson)
@@ -227,12 +227,12 @@ class JsonFinderBinderSpec extends Specification {
         def boundVars = instance.fetchVarToValues(pathVars, payload)
 
         then:
-        boundVars['uni-id'] == UNI_ID
+        boundVars['nui-id'] == UNI_ID
     }
 
     def "retrieves the value of a mapped JSON element based on a path"() {
         given:
-        def path = 'uni.[].uni-id'
+        def path = 'uni.[].nui-id'
         def payloadJson = testPayload()
         def payload = slurper.parseText(payloadJson)
 

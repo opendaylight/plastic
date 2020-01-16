@@ -22,7 +22,7 @@ class ParrotNotificationSpec extends Specification {
 
     def "translate parrot notification into standard json notification"() {
         given:
-        def realInputSchema = new VersionedSchema("uni-create-notify-parrot", "1.0", "JSON")
+        def realInputSchema = new VersionedSchema("nui-create-notify-parrot", "1.0", "JSON")
         def realOutputSchema = new VersionedSchema("std-notification", "1.0", "JSON")
         def input = '''
             {

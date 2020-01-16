@@ -1,0 +1,18 @@
+{
+  "name": "${nui-name}",
+  "comments": "${nui-description}",
+  "nui-activate": "${nui-admin-status}",
+  "customer-ref": "${nui-tenant-name}",
+  "ni-name": "${nui-id}",
+  "ni-comments": "${nui-abc-data-profile-description}",
+  "tp-ref": "${nui-endpoint}",
+  "ni-activate": "${nui-abc-data-profile-activate}",
+  "mtu": "${nui-abc-data-profile-mtu}",
+  "speed": "${nui-abc-data-profile-speed}",
+  "mode": "${nui-abc-data-profile-mode}",
+  "enable-link-management": "${enable-link-management}",
+  "enable-link-oam": "${nui-abc-data-profile-link-oam-enabled}",
+  "service-multiplexing": "${nui-abc-data-profile-service-multiplexing-enabled}",
+  "bundling": "${nui-abc-data-profile-bundling-enabled}",
+  "all-to-one-bundling": "${nui-abc-data-profile-all-to-one-bundling-enabled}"
+}

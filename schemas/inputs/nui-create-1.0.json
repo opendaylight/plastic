@@ -1,0 +1,38 @@
+{
+  "uni": [
+    {
+      "univ-id": "${univ-id}",
+      "name": "${nui-name}",
+      "description": "${nui-description}",
+      "service-type": "${nui-service-type}",
+      "service-subtype": "${nui-service-subtype}",
+      "admin-status": "${nui-admin-status}",
+      "tenant-name": "${nui-tenant-name}",
+      "vem-name": "${nui-vem-name}",
+      "skip-deploy": "${nui-skip-deploy}",
+      "endpoint": {
+        "device": "${nui-endpoint-device}",
+        "port": "${nui-endpoint-port}",
+        "port-bandwidth": "${nui-endpoint-port-bandwidth}"
+      },
+      "ce-vlan-id-for-untagged-and-priority": "${nui-ce-vlan-id-for-untagged-and-priority}",
+      "ce-vlan-ids": [
+        {
+          "vlan-id": "${nui-ce-vlan-id-entry}"
+        }
+      ],
+      "nui-abc-data-profile": {
+        "name": "${nui-abc-data-profile-name}",
+        "description": "${nui-abc-data-profile-description}",
+        "all-to-one-bundling-enabled": "${nui-abc-data-profile-all-to-one-bundling-enabled}",
+        "bundling-enabled": "${nui-abc-data-profile-bundling-enabled}",
+        "link-oam-enabled": "${nui-abc-data-profile-link-oam-enabled}",
+        "speed": "${nui-abc-data-profile-speed}",
+        "mode": "${nui-abc-data-profile-mode}",
+        "mtu": "${nui-abc-data-profile-mtu}",
+        "service-multiplexing-enabled": "${nui-abc-data-profile-service-multiplexing-enabled}",
+        "activate": "${nui-abc-data-profile-activate}"
+      }
+    }
+  ]
+}

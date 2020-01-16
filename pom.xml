@@ -75,7 +75,6 @@
     <plastic.runner.dir>plasticrunner</plastic.runner.dir>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
-      <kotlin.version>1.2.71</kotlin.version>
   </properties>
 
   <dependencies>
@@ -132,7 +131,21 @@
       <scope>runtime</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-core</artifactId>
+      <version>1.19</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-generator-annprocess</artifactId>
+      <version>1.19</version>
+      <scope>test</scope>
+    </dependency>
 
+      <!-- Future use of Kotlin for implementation
+      <kotlin.version>1.2.71</kotlin.version>
       <dependency>
           <groupId>org.jetbrains.kotlin</groupId>
           <artifactId>kotlin-stdlib-jdk8</artifactId>
@@ -144,6 +157,8 @@
           <version>${kotlin.version}</version>
           <scope>test</scope>
       </dependency>
+      -->
+
       <dependency>
           <groupId>com.beust</groupId>
           <artifactId>klaxon</artifactId>
@@ -281,8 +296,7 @@
               <descriptorRefs>
                 <descriptorRef>jar-with-dependencies</descriptorRef>
               </descriptorRefs>
-              <finalName>${project.artifactId}-${project.version}-exec</finalName>
-              <appendAssemblyId>false</appendAssemblyId>
+              <finalName>${project.artifactId}-${project.version}-runner</finalName>
             </configuration>
             <goals>
               <goal>single</goal>
@@ -302,6 +316,24 @@
             </goals>
             <phase>package</phase>
           </execution>
+          <execution>
+            <id>make-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <configuration>
+              <archive>
+                  <manifest>
+                    <mainClass>org.openjdk.jmh.Main</mainClass>
+                  </manifest>
+              </archive>
+              <descriptors>
+                <descriptor>src/assembly/fat_tests.xml</descriptor>
+              </descriptors>
+              <attach>false</attach>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
 
@@ -318,68 +350,114 @@
           </execution>
         </executions>
       </plugin>
+
+        <!-- Future use of Kotlin for implementation
+          <plugin>
+              <groupId>org.jetbrains.kotlin</groupId>
+              <artifactId>kotlin-maven-plugin</artifactId>
+              <version>${kotlin.version}</version>
+              <executions>
+                  <execution>
+                      <id>compile</id>
+                      <phase>compile</phase>
+                      <goals>
+                          <goal>compile</goal>
+                      </goals>
+                      <configuration>
+                          <sourceDirs>
+                              <source>src/main/groovy</source>
+                              <source>src/main/java</source>
+                              <source>src/main/kotlin</source>
+                          </sourceDirs>
+                      </configuration>
+                  </execution>
+                  <execution>
+                      <id>test-compile</id>
+                      <phase>test-compile</phase>
+                      <goals>
+                          <goal>test-compile</goal>
+                      </goals>
+                  </execution>
+              </executions>
+              <configuration>
+                  <jvmTarget>1.8</jvmTarget>
+              </configuration>
+          </plugin>
+          -->
         <plugin>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-maven-plugin</artifactId>
-            <version>${kotlin.version}</version>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>3.0.1</version>
+          <executions>
+            <execution>
+              <id>attach-sources</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>jar-no-fork</goal>
+              </goals>
+              <configuration>
+                <useDefaultExcludes>false</useDefaultExcludes>
+                <includes>
+                  <include>**/*</include>
+                </includes>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <!--
+          <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-shade-plugin</artifactId>
+              <version>3.2.0</version>
+              <executions>
+                  <execution>
+                      <phase>package</phase>
+                      <goals>
+                          <goal>shade</goal>
+                      </goals>
+                      <configuration>
+                          <shadeTestJar>true</shadeTestJar>
+                          <finalName>benchmarks</finalName>
+                          <transformers>
+                              <transformer
+                                      implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                  <mainClass>org.openjdk.jmh.Main</mainClass>
+                              </transformer>
+                          </transformers>
+                      </configuration>
+                  </execution>
+              </executions>
+          </plugin>
+          -->
+        <!--
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>3.2.0</version>
             <executions>
                 <execution>
-                    <id>compile</id>
-                    <phase>compile</phase>
-                    <goals>
-                        <goal>compile</goal>
-                    </goals>
                     <configuration>
-                        <sourceDirs>
-                            <source>src/main/groovy</source>
-                            <source>src/main/java</source>
-                            <source>src/main/kotlin</source>
-                        </sourceDirs>
+                        <classifier>benchmark</classifier>
                     </configuration>
-                </execution>
-                <execution>
-                    <id>test-compile</id>
-                    <phase>test-compile</phase>
+                    <phase>package</phase>
                     <goals>
-                        <goal>test-compile</goal>
+                        <goal>test-jar</goal>
                     </goals>
                 </execution>
             </executions>
-            <configuration>
-                <jvmTarget>1.8</jvmTarget>
-            </configuration>
         </plugin>
-      <plugin>
-        <artifactId>maven-source-plugin</artifactId>
-        <version>3.0.1</version>
-        <executions>
-          <execution>
-            <id>attach-sources</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>jar-no-fork</goal>
-            </goals>
-            <configuration>
-              <useDefaultExcludes>false</useDefaultExcludes>
-              <includes>
-                <include>**/*</include>
-              </includes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
+        -->
+      </plugins>
+    </build>
 
-    <distributionManagement>
-        <repository>
-            <id>opendaylight-release</id>
-            <url>${nexusproxy}/repositories/opendaylight.release/</url>
-        </repository>
-        <snapshotRepository>
-            <id>opendaylight-snapshot</id>
-            <url>${nexusproxy}/repositories/opendaylight.snapshot/</url>
-        </snapshotRepository>
-    </distributionManagement>
+      <distributionManagement>
+          <repository>
+              <id>opendaylight-release</id>
+              <url>${nexusproxy}/repositories/opendaylight.release/</url>
+          </repository>
+          <snapshotRepository>
+              <id>opendaylight-snapshot</id>
+              <url>${nexusproxy}/repositories/opendaylight.snapshot/</url>
+          </snapshotRepository>
+      </distributionManagement>
 
-</project>
+  </project>

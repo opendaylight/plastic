@@ -18,8 +18,8 @@ class PlasticIntegrationSpec extends Specification {
     CartographerWorker instance = new CartographerWorker()
 
     def "translate UNI Create from JSON to XML"() {
-        def realInputSchema = new VersionedSchema("uni-create", "1.0", "JSON")
-        def realOutputSchema = new VersionedSchema("uni-create-epm", "2.1", "XML")
+        def realInputSchema = new VersionedSchema("nui-create", "1.0", "JSON")
+        def realOutputSchema = new VersionedSchema("nui-create-epm", "2.1", "XML")
         def input = '''
             {
               "uni": [{
@@ -41,8 +41,8 @@ class PlasticIntegrationSpec extends Specification {
                 "ce-vlan-ids": [{
                   "vlan-id": 1
                 }],
-                "uni-ce-data-profile": {
-                  "name": "uni-ce-data-profile-1",
+                "nui-abc-data-profile": {
+                  "name": "nui-abc-data-profile-1",
                   "description": "1GBPS CARRIER_ETHERNET_VPN",
                   "all-to-one-bundling-enabled": false,
                   "bundling-enabled": false,
@@ -74,7 +74,7 @@ class PlasticIntegrationSpec extends Specification {
                 <network-interface-list>
                   <network-interface>
                     <name>400_58102</name>
-                    <ce-data>
+                    <abc-data>
                       <activate>true</activate>
                       <description>1GBPS CARRIER_ETHERNET_VPN</description>
                       <mtu>1522</mtu>
@@ -85,7 +85,7 @@ class PlasticIntegrationSpec extends Specification {
                       <enable-link-oam>false</enable-link-oam>
                       <enable-link-Management>false</enable-link-Management>
                       <all-to-one-bundling>false</all-to-one-bundling>
-                    </ce-data>
+                    </abc-data>
                   </network-interface>
                 </network-interface-list>
               </service-order-data>
