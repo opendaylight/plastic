@@ -8,11 +8,14 @@
 ==============
 Plastic Runner
 ==============
-*Sep 27, 2019*
+*Jan 17, 2020*
 
-Plastic Runner was created to help speed up the morpher writer's development cycle. Without this
-utility, the controller would have to be restarted for any morpher logic changes to take effect. The
-utility consists of the following:
+Plastic Runner was created to help speed up the morpher writer's development cycle. It is a full deployment
+of Plastic in a single directory. It is intended to allow quick changes along with testing of those changes.
+It typically takes just a small number of seconds to try out your changes to schemas, morphers, and
+classifiers.
+
+The utility consists of the following:
 
 * plastic_runner.sh (the script used to invoke the feature)
 * example.properties (an example properties file that supplies arguments to the script above)
@@ -20,6 +23,14 @@ utility consists of the following:
 * morphers (directory for your test morphers)
 * schemas (directory for your test schemas)
 * classifiers (directory for your test classifiers)
+
+Plastic Runner comes in a .tar.gz and can be obtained from any Plastic build. You may also run it directly
+from the target/plasticrunner directory after you do a build.
+
+.. warning::
+
+  Note that you can opt use the target/plasticrunner but the entire target directory is
+  wiped out on each build, including any of your files. So be aware of this risk.
 
 To use the utility, make sure all components in the list above are in a directory. Copy the
 properties file to a name of your choice like test.properties and edit that new file. An example

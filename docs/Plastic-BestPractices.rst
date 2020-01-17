@@ -8,7 +8,12 @@
 ======================
 Plastic Best Practices
 ======================
-*Sep 27, 2019*
+*Jan 17, 2020*
+
+- Your input schema only needs to reflect the portion of the payload you are interested
+  in; any extra structure/data in the payload is ignored. So don't over-specify your
+  input schemas: it slows down the translation and makes it harder to see what is
+  important.
 
 - Always use a unique name for each morpher. They are all in the same namespace and
   will collide if they have the same name. Ideally the morpher class name will include
