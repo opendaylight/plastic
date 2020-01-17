@@ -20,14 +20,14 @@ class VariablesSpec extends Specification {
         given:
         Variables instance = new Variables(input)
         expect:
-        instance.join() == expected
+        instance.raw() == expected
         where:
         input | expected
-        "\${a}"           | "a"
-        "\${a}\${b}"      | "a, b"
-        "  \${abcd}  "    | "abcd"
-        "abc\${abcd}abcd" | "abcd"
-        "\${   a    }"    | "a"
+        '${a}'           | "a"
+        '${a}${b}'       | "a, b"
+        '  ${abcd}  '    | "abcd"
+        'abc${abcd}abcd' | "abcd"
+        '${   a    }'    | "a"
     }
 
     def "should not recognize partial occurrences of plastic variables"() {
@@ -37,10 +37,10 @@ class VariablesSpec extends Specification {
         instance.isPresent() == expected
         where:
         input             | expected
-        "\${a}"           | true
-        "\${a"            | false
-        "  {abcd}  "      | false
-        "\$ {abcd}"       | false
+        '${a}'            | true
+        '${a'             | false
+        '  {abcd}  '      | false
+        '$ {abcd}'        | false
     }
 
     def "can custom process each found plastic variable"() {
@@ -54,28 +54,50 @@ class VariablesSpec extends Specification {
     }
 
     def "adorns a variable name"() {
-        Variables instance = new Variables("")
         expect:
-        instance.adorn("string") == '${string}'
-        instance.adorn("hyphen-ated") == '${hyphen-ated}'
+        Variables.adorn("string") == '${string}'
+        Variables.adorn("hyphen-ated") == '${hyphen-ated}'
     }
 
-    def "individual indexed variables can be recognized"() {
-        Variables instance = new Variables("")
+    def "indexed variables can be recognized"() {
         expect:
-        !instance.isGenericIndexed("")
-        !instance.isGenericIndexed("abc")
-        !instance.isGenericIndexed('${abc}')
-        instance.isGenericIndexed("abc[*]")
-        instance.isGenericIndexed('${abc[*]}')
+        Variables.isIndexed(input) == expected
+        where:
+        input | expected
+        "abc"        | false
+        "abc["       | false
+        "abc]"       | false
+        "abc*"       | false
+        "abc[*"      | false
+        "abc*]"      | false
+        "abc[]"      | false
+        "abc[*]"     | true
+        "abc[0]"     | true
+        "abc[1234]"  | true
+    }
+
+    def "generic indexed variables can be recognized"() {
+        expect:
+        Variables.isGenericIndexed(input) == expected
+        where:
+        input       | expected
+        ""          | false
+        "abc"       | false
+        '${abc}'    | false
+        "abc[*]"    | true
+        '${abc[*]}' | true
     }
 
     def "indexes can be generified"() {
-        Variables instance = new Variables("")
         expect:
-        instance.generifyIndex('${abc}') == '${abc}'
-        instance.generifyIndex('def[1]') == 'def[*]'
-        instance.generifyIndex('${ghi[1]}') == '${ghi[*]}'
+        Variables.generifyIndex(input) == expected
+        where:
+        input           | expected
+        '${abc}'        | '${abc}'
+        'def[1]'        | 'def[*]'
+        '${ghi[1]}'     | '${ghi[*]}'
+        '${ghi[1]=345}' | '${ghi[*]=345}'
+        '${ghi[*]=345}' | '${ghi[*]=345}'
     }
 
     def "individual indices can be extracted" () {
@@ -88,41 +110,36 @@ class VariablesSpec extends Specification {
     }
 
     def "specific indexed variables can be generated from a generic indexed variable"() {
-        given:
-        Variables instance = new Variables()
         expect:
-        instance.generateIndexed("abc[*]", 3) == [ "abc[0]", "abc[1]", "abc[2]" ]
+        Variables.generateManyIndexed("abc[*]", 3) == ["abc[0]", "abc[1]", "abc[2]" ]
     }
 
     def "no indexed variables are generaged from a non-indexed variable"() {
-        given:
-        Variables instance = new Variables()
         expect:
-        instance.generateIndexed("abc", 3) == []
+        Variables.generateManyIndexed("abc", 3) == []
     }
 
     def "no indexed variables are generaged from a nonsense count"() {
-        given:
-        Variables instance = new Variables()
         expect:
-        instance.generateIndexed("abc[*]", -3) == []
+        Variables.generateManyIndexed("abc[*]", -3) == []
     }
 
     def "matching works"() {
-        Variables instance = new Variables("")
         expect:
-        instance.matches("", "")
-        instance.matches("abc", "abc")
-        instance.matches("abc[1]", "abc[1]")
-        instance.matches("abc[1]", "abc[*]")
-
-        !instance.matches("abc", "def")
-        !instance.matches("abc[1]", "abc[2]")
+        Variables.matches(s1, s2) == expected
+        where:
+        s1       | s2       | expected
+        ""       | ""       | true
+        "abc"    | "abc"    | true
+        "abc[1]" | "abc[1]" | true
+        "abc[1]" | "abc[*]" | true
+        "abc"    | "def"    | false
+        "abc[1]" | "abc[2]" | false
     }
 
     def "multiple matching works"() {
         given:
-        Variables instance = new Variables("")
+        Variables instance = new Variables()
         and:
         int dontcare = 0
         Map keyValues = ['abc': dontcare, 'abc[0]': dontcare, 'abc[1]': dontcare, 'def[0]': dontcare]
@@ -175,5 +192,26 @@ class VariablesSpec extends Specification {
         '\${a}'         | ['\${a}']
         '\${a}\${b}'    | ['\${a}', '\${b}']
         '\${a[*]}\${b}' | ['\${a[*]}', '\${b}']
+    }
+
+    @Unroll
+    def "ad hoc parsing of multiple variables works"() {
+        given:
+        Variables instance = new Variables()
+        expect:
+        instance.splitApart(input) == expected
+        where:
+        input           | expected
+        ''              | [ ]
+        'xyz'           | [ 'xyz' ]
+        '${a}'          | [ '${a}' ]
+        '${a}${b}'      | [ '${a}', '${b}' ]
+
+        'xyz${a}'       | [ 'xyz', '${a}' ]
+        '${a}xyz'       | [ '${a}', 'xyz' ]
+        '${a}xyz${b}'   | [ '${a}', 'xyz', '${b}' ]
+
+        '${a'           | [ '${a' ]
+        'a}'            | [ 'a}' ]
     }
 }

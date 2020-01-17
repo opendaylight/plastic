@@ -41,7 +41,7 @@ class MoVariables {
     }
 
     MoArray newArray(String newSlice, int len, Object defValue) {
-        List newKeys = variables.generateIndexed(newSlice, len)
+        List newKeys = variables.generateManyIndexed(newSlice, len)
         MoVariables self = this
         newKeys.each { k -> self[k] = defValue }
         new MoArray(newSlice, bindings)
@@ -193,7 +193,7 @@ class MoArray {
     }
 
     void set(List values) {
-        List newVars = variables.generateIndexed(sliceName, values.size())
+        List newVars = variables.generateManyIndexed(sliceName, values.size())
 
         keys.each { k -> bindings.remove(k) }
         keys.clear()
@@ -223,7 +223,7 @@ class MoArray {
     }
 
     private void forcePutAt(int index, Object value) {
-        String newVar = variables.generateOneIndexed(sliceName, index)
+        String newVar = variables.generateAsIndexed(sliceName, index)
         bindings.put(newVar, value)
         keys.add(newVar)
     }

@@ -253,39 +253,42 @@ class JsonFinderBinder {
             hasUniformValues(sizes)
         }
 
-        // TODO: re-order this by frequency, put String and GString near front of order, move to shared code
-
         // Explicitly converting scalar values to strings below to avoid automatic
         // representation of large integers as fixed point exponential format or
         // numeric 0 eventually being an empty string.
         //
-        // This is also done in VersionedSchemaParsed.asDefaults()
-
         private static Object nullPrimitiveOrCollection(Object value) {
             if (value == null)
                 return value
+
             // Hotspot: used to use switch statement
+            // For speed, ordered by likelihood of match
+
+            if (value.class == String)
+                return value
+            if (value.class == GString)
+                return value
             if (value.class == Integer)
                 return value
             if (value.class == Long)
+                return value
+            if (value.class == BigDecimal)
+                return value
+            if (value instanceof List)
+                return value
+            if (value instanceof Map)
+                return value
+            if (value.class == Double)
+                return value
+            if (value.class == Boolean)
                 return value
             if (value.class == Short)
                 return value
             if (value.class == Float)
                 return value
-            if (value.class == Double)
-                return value
-            if (value.class == BigDecimal)
-                return value
             if (value.class == Byte)
                 return value
-            if (value.class == Boolean)
-                return value
             if (value.class == Character)
-                return value
-            if (value instanceof List)
-                return value
-            if (value instanceof Map)
                 return value
 
             // Hotspot: used to use ""+value

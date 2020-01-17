@@ -163,7 +163,7 @@ abstract class VersionedSchemaParsed {
         values.each { k,v ->
             if (vars.isGenericIndexed(k)) {
                 if (v instanceof List) {
-                    List indexedVars = vars.generateIndexed(k, v.size())
+                    List indexedVars = vars.generateManyIndexed(k, v.size())
                     indexedVars.eachWithIndex { String indexedVar, int i ->
                         results.putAt(indexedVar, isCollection(v[i]) ? v[i] : ""+v[i])
                     }

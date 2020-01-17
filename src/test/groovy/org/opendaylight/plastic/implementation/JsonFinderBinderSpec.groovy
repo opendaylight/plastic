@@ -360,10 +360,10 @@ class JsonFinderBinderSpec extends Specification {
         1 * mockLogger.debug({ it =~ "ARRAY-SIZES" })
     }
 
-    // Conceptual rub that needs resovling eventually. This class is used on both the input
-    // and output side. Multiple variables in the same "value slot" on the output make
-    // sense. But on the input side, it is ambiguous; it is almost a poor man's regex if
-    // we implemented it. For now we are just letting the value itself be duplicated for
+    // This class is used on both the input and output side. Multiple variables
+    // in the same "value slot" on the output make sense. But on the input side,
+    // it is ambiguous unless it uses the wildcarding feature.
+    // For now we are just letting the value itself be duplicated for
     // each variable.
 
     def "multiple values can be found without masking each other"() {
@@ -690,5 +690,32 @@ class JsonFinderBinderSpec extends Specification {
                   "RIGHT[1]": "4",
                   "LEFT[2]":  "5",
                   "RIGHT[2]": "6"]
+    }
+
+    def "special test cases from the past"() {
+        given:
+        String jpayload = """
+        [
+            0,
+            ${Long.MAX_VALUE},
+            0.000000000000000000001
+        ]
+        """
+        String jmodel = '''
+        [
+            "${VALUE[*]}"
+        ]
+        '''
+        and:
+        def model = slurper.parseText(jmodel)
+        def payload = slurper.parseText(jpayload)
+
+        when:
+        def found = instance.process(model, payload).bindings()
+
+        then:
+        found["VALUE[0]"] == 0
+        found["VALUE[1]"] == Long.MAX_VALUE
+        found["VALUE[2]"] == 0.000000000000000000001
     }
 }

@@ -52,7 +52,7 @@ class PlasticStressSpec extends Specification {
         int elapsed = benchmark {
             instance.translate(inputVs, outputVs, payload)
         }
-        println(">>>>> PREVIOUS:")
+
         /*
         Historical improvements...
         println(">>>>> Translations: 1000000   Elapsed:  52 sec (before @CompileStatic JsonFinderBinder)\n")
@@ -66,15 +66,19 @@ class PlasticStressSpec extends Specification {
                 "  29 sec (after fix brackets in the stress-in-2-1.0.json input schema)\n")
         println(">>>>> Translations: 100000   Elapsed:" +
                 "  26 sec (after isGenericIndexed() optimization in Variables)\n")
+                15 sec after optimization of Variables (removal or regex, static methods, ...)
         */
 
-        int currentBestSec = 18 // seconds
+        int currentBestSec = 15
+        int varianceSec = 3
 
-        println(">>>>> Translations: 100000   Elapsed: ${currentBestSec} sec\n")
+        println("")
+        println(">>>>> PREVIOUS:")
+        println(">>>>> Translations: 100000   Elapsed: ${currentBestSec} sec")
         println(">>>>> CURRENT:")
         println(">>>>> Translations: ${N}   Elapsed(msec): ${elapsed}   Per-sec: ${1000.0*N/elapsed}\n\n")
         then:
-        elapsed < currentBestSec * 1000
+        elapsed < (currentBestSec+varianceSec) * 1000
         where:
         N        | _
         100000   | _

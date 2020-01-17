@@ -222,20 +222,20 @@ class JsonValuesInjector {
                 if (vars.isPresent()) {
                     def replaced = schemaValue
                     vars.toEach { String var, String val ->
-                        def matchedVars = vars.matches(inValues, var)
+                        def matchedVars = Variables.matches(inValues, var)
                         if (!matchedVars.isEmpty()) {
-                            if (vars.isGenericIndexed(var)) {
+                            if (Variables.isGenericIndexed(var)) {
                                 parentCollections.markForExpansion(var, matchedVars)
                             }
                             else {
                                 foundInputVars.add(var)
-                                replaced = this.replace(vars.adornPattern(var), inValues[var], replaced)
+                                replaced = this.replace(Variables.adorn(var), inValues[var], replaced)
                             }
                         }
-                        else if (vars.isGenericIndexed(var)) {
+                        else if (Variables.isGenericIndexed(var)) {
                             // it is an indexed variable and has no bound values, so the "expansion"
                             // of it is to remove it from the array or use a blank value otherwise
-                            String abandoned = vars.adorn(var)
+                            String abandoned = Variables.adorn(var)
                             todos.add({ abandonVariable(model, abandoned) })
                         }
                         else {
@@ -276,7 +276,7 @@ class JsonValuesInjector {
                         matchedIndices.each { String index ->
                             def cloned = deepCopy(member)
                             recursivelyReplace(cloned,
-                                    vars.genericIndexPattern(),
+                                    Variables.genericIndex(),
                                     index)
                             todos.add({
                                 this.walkTheModel(inValues, cloned, parentCollections, danglingOutputVars,
@@ -375,36 +375,33 @@ class JsonValuesInjector {
         value
     }
 
-    // pattern is the regex version of the variable
-    // value is the replacement value
-    // output is the original that needs replacing
+    private Object replace(String varName, Object varValue, Object output) {
 
-    private def replace(String pattern, value, output) {
-        if (value == null)
+        // Not sure this really makes sense. Shouldn't we just treat the replacement value
+        // as empty and continue? Needs looking at.
+
+        if (varValue == null)
             return ""
 
+        // Trying to replace a portion of something with a collection doesn't make sense, so just
+        // return the collection (ie, a full replacement, which does make sense)
+
+        if (isCollection(varValue))
+            return varValue
+
         if (output instanceof String || output instanceof GString) {
+            String sOutput = (String) output
+            String sValue = varValue.toString()
 
-            if (isCollection(value))
-                return value
+            sOutput = sOutput.replace(varName, sValue)
 
-            def replacementValue = (value instanceof Boolean) ? Boolean.toString(value) : value.toString()
+            // If this is a complete replacement, then retain the original type from the value.
+            // Do not stringify it. A partial replacement by definition should result in a string.
 
-            // This little bit of WTF gets around replaceAll's inability
-            // to deal with the replacement value (which is not a regex)
-            // containing $ characters (it thinks it is some kind of regex
-            // register substitution). Fix is to replace $ with \$
-
-            // String replace is the possible hotspot based on profiling
-            String wtf = replacementValue.replace("\$", "\\\$")
-            output = ((String)output).replaceAll(pattern, wtf)
-
-            if (output == "${value}")
-                // return native type in return model as it is the complete value
-                // * a concession to retaining JSON types; this uses the incoming type
-                //   as the desired outgoing type since the outgoing 'type' must be a
-                //   string to hold the variable and still be parsable JSON
-                return value
+            if (sOutput == sValue)
+                output = varValue
+            else
+                output = sOutput
         }
 
         return output

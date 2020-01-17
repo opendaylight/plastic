@@ -207,6 +207,73 @@ class JsonValuesInjectorSpec extends Specification {
         payloadAndOutput.addresses == [ "1.2.3.4", "5.6.7.8", "9.10.11.12" ]
     }
 
+    def "full value replacement can use bound values of various types"() {
+        given:
+        def bound = [ 'ABC': value ]
+        Object payloadAndOutput = new JsonSlurper().parseText('''
+        {
+            "test": "${ABC}"
+        }
+        ''')
+        when:
+        instance.inject(bound, payloadAndOutput, danglingInputs, danglingOutputs)
+
+        then:
+        payloadAndOutput.test == expected
+        where:
+        value                | expected
+        null                 | ""
+        "1"                  | "1"
+        123                  | 123
+        true                 | true
+        12345678901234567890 | 12345678901234567890
+        [ 'a' ]              | [ 'a' ]
+        [ 'a': 1 ]           | [ 'a': 1 ]
+    }
+
+    def "partial value replacement use bound values of various types results in string values"() {
+        given:
+        def bound = [ 'ABC': value ]
+        Object payloadAndOutput = new JsonSlurper().parseText('''
+        {
+            "test": "abc ${ABC}"
+        }
+        ''')
+        when:
+        instance.inject(bound, payloadAndOutput, danglingInputs, danglingOutputs)
+
+        then:
+        payloadAndOutput.test == expected
+        where:
+        value                | expected
+        null                 | ""
+        "1"                  | "abc 1"
+        123                  | "abc 123"
+        true                 | "abc true"
+        12345678901234567890 | "abc 12345678901234567890"
+        [ 'a' ]              | [ 'a' ]
+        [ 'a': 1 ]           | [ 'a': 1 ]
+    }
+
+    def "edge: partial value replacement for non-scalar bound values is full value replacement"() {
+        given:
+        def bound = [ 'ABC': value ]
+        Object payloadAndOutput = new JsonSlurper().parseText('''
+        {
+            "test": "abc ${ABC}"
+        }
+        ''')
+        when:
+        instance.inject(bound, payloadAndOutput, danglingInputs, danglingOutputs)
+
+        then:
+        payloadAndOutput.test == expected
+        where:
+        value                | expected
+        [ 'a' ]              | [ 'a' ]
+        [ 'a': 1 ]           | [ 'a': 1 ]
+    }
+
     def "a multi-variable array of scalar values is expanded properly"() {
         given:
         def bound = ['ADDR[1]': "1.2.3.4",
@@ -421,7 +488,7 @@ class JsonValuesInjectorSpec extends Specification {
         }
         ''')
         when:
-        instance.recursivelyReplace(model, vars.genericIndexPattern(), "[0]")
+        instance.recursivelyReplace(model, vars.genericIndex(), "[0]")
         then:
         model == expected
     }
@@ -453,7 +520,7 @@ class JsonValuesInjectorSpec extends Specification {
         }
         ''')
         when:
-        instance.recursivelyReplace(model, vars.genericIndexPattern(), "[0]")
+        instance.recursivelyReplace(model, vars.genericIndex(), "[0]")
         then:
         model == expected
     }
