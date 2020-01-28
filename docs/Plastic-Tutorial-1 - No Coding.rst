@@ -603,8 +603,8 @@ And using our original payload, here is the final output of the translation.
 
 Some caveats
 
-- If your schema is dealing with multiple arrays, then all must be the same length, otherwise you need to write code
-- If your schema is using nested arrays, you will need to break up the translation, or write code
+- If your schema is dealing with multiple arrays, then all must be the same length (or have default values)
+- If your schema is using nested arrays, see the next chapter
 - The arrayed variables feature has not been implemented for XML
 
 Note that there is more advanced authoring support, not covered here, that allows writing
@@ -647,9 +647,463 @@ schema below will work too, resulting in 300 elements!
   }
 
 
-To continue the tutorial, see the separate part 2.
+Chapter 7 - Nested Arrayed Variables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Chapter 7 - Pattern Matching
+Welcome one of the most powerful features in Plastic. Complex payloads like those found in OpenConfig deal
+with nested array stuctures. Up to this point, we have been talking about **singly dimensioned** arrays. These
+can be full of scalar values or complex object values. Support for nested arrays means that an array can
+have embedded arrays of things to. Nested arrays are also called **multiply dimensioned**.
+
+An array has a size that usually isn't known until an arriving payload is parsed. The array indices are
+zero-based (like most programming languages assume). So an array of size N will have individual indices of
+0 ... N-1. Iterating is a concept of processing each element of an array, one after the other, and the index
+value identifies the iteration.
+
+The enclosing array is a **parent array** that encloses one or more **child arrays**. The children are all sibling
+arrays. Any given array can be a parent, a child, or both all at the same time. The parent-child relationship
+is important because generating a new element for a parent array means that a new, fully complete child array needs
+to be generated per parent array element. More on this later.
+
+The whole intent behind this feature, indeed of Plastic itself, is the **decoupling** of incoming structure from
+outgoing structure. In terms of nested arrays, the nesting that is found in the incoming data can be expressed
+differently in the outgoing data. The nestings do not need to match at all, and Plastic gives a way to express
+that without writing code.
+
+Flattening
+++++++++++
+One of the important ways that an output structure can be expressed differently than the input structure is
+called **flattening**. This can be done via **partial flattening** or **full flattening**. A singly dimensioned
+array is already as flat as it can be, so flattening it makes no sense. But consider an nested array structure
+like this (3x3)::
+
+    [
+        [ a, b, c ]
+        [ d, e, f ]
+        [ g, h, i ]
+    ]
+
+Since this is two levels of nesting, it can be flattened to a single level like this (1x9)::
+
+    [
+        a, b, c, d, e, f, g, h, i
+    ]
+
+Here is a 3 dimensional array (2x2x2)::
+
+    [
+        [
+            [ a, b ]
+            [ c, d ]
+        ]
+        [
+            [ e, f ]
+            [ g, h ]
+        ]
+    ]
+
+Here is partly flattened result (2x4)::
+
+    [
+        [
+            a, b, c, d
+        ]
+        [
+            e, f, g, h
+        ]
+    ]
+
+And here is the fully flattened result (1x8)::
+
+    [ a, b, c, d, e, f, h, h ]
+
+In summary, flattening is an output concept. It is reducing the level of input nesting present in the input data.
+
+Rectangular Indices and Holes
++++++++++++++++++++++++++++++
+
+Below is a 3x3 chunk of nested array data shown as JSON. It has rectangular indices because it is
+a true 3x3. That is, there are no missing values (not the same as blank values).
+
+.. code-block:: JSON
+
+    [
+        [ "a", "b", "c" ],
+        [ "d", "e", "f" ],
+        [ "g", "h", "i" ]
+    ]
+
+Unfortunately, when dealing with real payloads, things are not so clean. Here is an example of a
+3x3 but it does not have rectangular indices.
+
+.. code-block:: JSON
+
+    [
+        [ "a", "b", "c" ],
+        [ "d", "e" ],
+        [ "f" ]
+    ]
+
+In fact, the number of child arrays defines the first indice and the length of the longest child
+array defines the second indice. So below is also a non-rectangular 3x3
+
+.. code-block:: JSON
+
+    [
+        [ "a", "b", "c" ],
+        [ "d" ],
+        [ "f" ]
+    ]
+
+The missing values, called **holes** in this document, can be anywhere. Plastic can deal gracefully
+holes without error. But if a particular output value is a mixing of two arrayed variables, like
+this::
+
+    "${a[*]}/${b[*]}"
+
+and one of them is missing, say there is no "b[2]" to match up against an "a[2]", then it is an error.
+You can supply a default value **in the output schema** like this to supply the missing value::
+
+    ${a[*]}/${b[*]=ouch}
+
+Rule::
+
+    If your array data is not rectangularly indexed, you can use default values in the output
+    schema to rectangularize it. Note that previous versions of Plastic only recognized default
+    values in the input schema.
+
+Syntax
+++++++
+
+So a single dimensioned array might use a variable syntax like this, valid on both the input and
+output schemas::
+
+   $a[*]
+
+A multiple dimensioned array might use a variable syntax like this, valid on both the input and
+output schemas::
+
+   $a[*]           <- dimension = 1
+   $a[*][*]        <- dimension = 2
+   $a[*][*][*]     <- dimension = 3
+   $a[*][*][*][*]  <- dimension = 4
+
+In addition, there is another array index syntax using a caret, that is applicable only for
+output schemas. It is used indicate that the index should be borrowed from the enclosing
+parent array. Here are examples::
+
+   $a[*]           <- first (and only) dimension comes from bound data
+   $a[^][*]        <- first dimension borrowed from parent, second from bound data
+   $a[^][^][*]     <- first 2 dimensions borrowed from parent, last from bound data
+   $a[^][^][^][*]  <- first 3 dimensions borrowed from parent, last from bound data
+   $a[^][^][*][*]  <- first 2 dimensions borrowed from parent, second 2 from bound data
+
+Here are some ILLEGAL examples of output arrayed variable syntax::
+
+   $a[^]           <- No!
+   $a[*][^]        <- ???
+   $a[^][*][^]     <- gibberish
+   $a[*][^][^][*]  <- WTF
+
+Rule::
+
+    Input schema:
+        Use abc[*]...[*] on the input schema (no other syntax is valid)
+
+Rule::
+
+    Output schema:
+        Use abc[^]...[^][*] to avoid flattening (the normal case)
+        Use abc[^]...[^][*]...[*] to partially or fully flatten
+
+Iterators
++++++++++
+
+A schema iterator is a set of values that describe how many times an element needs to be repeated
+in an array. I is basically an optional name, a set of dimensions, and a set of counters. As a Plastic
+user, iterators are conceptual only. You do not need to deal with them directly. But you will see
+some ensuing examples that show iterator values to help you understand what is happening on the input
+aka binding side and on the output aka expansion side.
+
+Here is an example of an iterator you might see if you wrote morpher logic and dumped the input map::
+
+    _[abc[*][*]]  =  [3,2]
+
+The key is the left of the = and the value is the right of the =. The name is everything between
+the _[...], which is abc plus the indices. The value is 3x2, which is the dimensions of the bound
+data.
+
+Examples
+++++++++
+
+Thing may be a bit murky, so lets dive into examples to clear things up. These assume that you are
+already familiar with most Plastic concepts. Note that you will see some internal bookkeeping iterators
+in the following examples
+
+Example: Independent Sibling Arrays
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Payload...
+
+.. code-block:: JSON
+
+    {
+        "abc": [ "aa", "bb", ... "zz" ],
+        "colors": [ "red", "green", "blue" ]
+    }
+
+Input schema...
+
+.. code-block:: JSON
+
+    {
+	    "abc": [ "${abc[*]}" ],
+	    "colors": [ "${colors[*]}" ]
+    }
+
+Internal bindings...
+
+.. code-block:: JSON
+
+    abc[0] = aa
+    abc[1] = bb
+    ...
+    abc[25] = zz
+
+    _[abc[*]] = [26]
+
+    colors[0] = red
+    colors[1] = green
+    colors[2] = blue
+
+    _[colors[*]] = [3]
+
+Output schema...
+
+.. code-block:: JSON
+
+    {
+	    "foo": [ "${abc[*]}" ],
+	    "bar": [ "${colors[*]}" ]
+    }
+
+Output...
+
+.. code-block:: JSON
+
+    {
+	    "foo": [ "aa", "bb", ... "zz" ],
+	    "bar": [ "red", "green", "blue" ]
+    }
+
+Example: Mixing Input Arrays into a Single Output Array
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Payload...
+
+.. code-block:: JSON
+
+    {
+	    "aaa": [ "aa", "bb", "cc" ],
+        "colors": [ "red", "green", "blue", "purple" ]
+    }
+
+Input schema...
+
+.. code-block:: JSON
+
+    {
+	    "aaa": [ "${aaa[*]}" ],
+	    "colors" [ "${colors[*]}" ]
+    }
+
+Internal bindings...
+
+.. code-block:: JSON
+
+    aaa[0] = aa
+    aaa[1] = bb
+    aaa[2] = cc
+
+    _[aaa[*]] = [3]
+
+    colors[0] = red
+    colors[1] = green
+    colors[2] = blue
+    colors[3] = purple
+
+    _[colors[*]] = [4]
+
+Output schema...
+
+.. code-block:: JSON
+
+    {
+	    "foobar": [ "${aaa[*]=xx}/${colors[*]=gray}" ]
+    }
+
+Output...
+
+.. code-block:: JSON
+
+    {
+	    "foobar": [ "aa/red", "bb/green", "cc/blue", "xx/purple" ]
+    }
+
+The "foobar" array in the output schema is constructed from two arrayed variables "aaa" and
+"colors". If the length for aaa is not the same as the length for colors, then this would
+result in an error, unless there are defaults present.
+
+Example: Two Deep Multi-dimensional Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(This is a shared input and bindings used to support several ensing examples)
+
+Payload...
+
+.. code-block:: JSON
+
+    {
+      "aaa": [
+          {
+              "id": "1",
+              "bbb": [ 'a', 'b', 'c' ]
+           },
+          {
+              "id": "2",
+              "bbb": [ 'd', 'e' ]
+           },
+          {
+              "id": "3",
+              "bbb": [ 'f' ]
+           },
+           {
+              "id": "4",
+              "bbb": [ ]
+           }
+        ]
+    }
+
+Input schema...
+
+.. code-block:: JSON
+
+    {
+      "aaa": [
+          {
+             "id": "${id[*]},
+              "bbb": [
+                 "${bbb[*][*]}"
+              ],
+           }
+       ]
+    }
+
+Internal bindings...
+
+.. code-block:: JSON
+
+     id[0] = 1
+     id[1] = 2
+     id[2] = 3
+     id[3] = 4
+
+     _[id[*]] = [4]
+
+     bbb[0][0] = a
+     bbb[0][1] = b
+     bbb[0][2] = c
+     bbb[1][0] = d
+     bbb[1][1] = e
+     bbb[2][0] = f
+
+     _[bbb[^][*]] = [4,3]
+
+Note::
+
+   This example shows that you cannot even count on rectangular matrices (ie, bbb is not 4x3 with 12 members).
+   And because of this, we may have shortened ranges (they must be dealt with). Worse, they actually can be real
+   holes and can be at any level of dimension. So even though there are only 6 entries for bbb, we have to
+   iterate over all 12 possibilities to be sure to cover everything.
+
+Example: Flattening
+~~~~~~~~~~~~~~~~~~~
+
+(This example uses the inputs and bindings from above)
+
+Output schema...
+
+
+.. code-block:: JSON
+
+    {
+      "foo": [
+          "${id[*]}"
+      ],
+      "bar": [
+          "${bbb[*][*]}"
+      ]
+    }
+
+Output...
+
+.. code-block:: JSON
+
+    {
+      "foo": [ 1, 2, 3, 4 ],
+      "bar": [ 'a', 'b', 'c', 'd', 'e', 'f' ]
+    }
+
+You know this data was being flattened because you can see the "[*][*]" in the output schema on "bbb".
+Flattening occurs when the number asterisks greater than 1.
+
+Example: Non-flattening
+~~~~~~~~~~~~~~~~~~~~~~~
+
+(This example uses the inputs and bindings from above)
+
+Output schema...
+
+.. code-block:: JSON
+
+    [
+      {
+          "foo": [
+              "${id[*]}"
+          ],
+          "bar": [
+              "${bbb[^][*]}"
+          ]
+      }
+    ]
+
+Output...
+
+.. code-block:: JSON
+
+    [
+      {
+          "foo": [ 1, 2, 3, 4 ],
+          "bar": [ 'a', 'b', 'c' ]
+      },
+      {
+          "foo": [ 1, 2, 3, 4 ],
+          "bar": [ 'd', 'e' ]
+      },
+      {
+          "foo": [ 1, 2, 3, 4 ],
+          "bar": [ 'f' ]
+      },
+      {
+          "foo": [ 1, 2, 3, 4 ],
+          "bar": [ ]
+      },
+    ]
+
+New syntax is [^] which means that this dimension is going to come from a parent array. A
+valid syntax is now extended to be zero or more [^] followed by one or more [*].
+
+Chapter 8 - Pattern Matching
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Schema designers often need to parse apart an input field to find a substring or two to assign as variable
@@ -740,11 +1194,12 @@ variable value to be the last word.
 
 You can use the command line runner and a very simple input/output schema to test our your wildcard expressions.
 
+
 Addenda
 ^^^^^^^
 
-The Wrapping Use Case
-+++++++++++++++++++++
+Over-specification and the Wrapping Use Case
+++++++++++++++++++++++++++++++++++++++++++++
 
 A fairly common use case for translation is to take a portion (or the full content) of the incoming
 payload produce a wrapped verison of it as output. There are a couple of ways to approach this problem.
@@ -791,6 +1246,7 @@ The latter is superior in every way.
 * It is immune to changes in the schema under "network-element".
 * It is a less complex task because the extra variable values do not need to be individually handled.
 
+The first simplistic attempt is an example of over-specification.
 
 Appendix
 ~~~~~~~~
@@ -799,3 +1255,8 @@ This document can be converted to PDF using `rst2pdf
 
 `RST syntax reference
 <http://docutils.sourceforge.net/docs/user/rst/quickref.html>`_
+
+
+
+
+To continue the tutorial, see the separate part 2.

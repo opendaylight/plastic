@@ -19,7 +19,7 @@ import java.util.regex.Pattern
  * See unit tests for practical usage examples.
  */
 @CompileStatic
-class WildCardMatcher implements VariablesBinder {
+class WildCardMatcher implements VariablesFetcher {
 
     static boolean usesWildcarding(String candidate) {
         candidate != null && candidate.startsWith("|") && candidate.endsWith("|")

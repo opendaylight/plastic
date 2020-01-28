@@ -13,10 +13,17 @@ package org.opendaylight.plastic.implementation
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import org.slf4j.Logger
-import spock.lang.Ignore
 import spock.lang.Specification
 
 class JsonFinderBinderSpec extends Specification {
+
+    boolean isSubsetOf(Map big, Map little) {
+        little.each { k,v ->
+            if (big[k] != v)
+                return false
+        }
+        true
+    }
 
     Logger mockLogger = Mock()
 
@@ -144,20 +151,6 @@ class JsonFinderBinderSpec extends Specification {
         '''
     }
 
-    def nestedListsPayload() {
-        '''
-        [ [ { "complex": "array" }, { "complex": "nested" } ], [ { "complex": "lists" }, { "complex": "maps" } ] ]
-        '''
-    }
-
-    def nestedListsModel() {
-        '''
-        [ [ "${object-list[*]}" ] ]
-        '''
-    }
-
-    def expectedNestedValues = ["array", "nested", "lists", "maps"]
-
     def "internal path creation works"() {
         expect:
         instance.concatPath("") == ""
@@ -218,7 +211,7 @@ class JsonFinderBinderSpec extends Specification {
 
     def "variables bound to paths fetch their values from a payload"() {
         given:
-        def pathVars = ['uni.[].nui-id': new SimpleVariableBinder('nui-id')]
+        def pathVars = ['uni.[].nui-id': new SimpleVariableFetcher('nui-id')]
 
         def payloadJson = testPayload()
         def payload = slurper.parseText(payloadJson)
@@ -237,7 +230,7 @@ class JsonFinderBinderSpec extends Specification {
         def payload = slurper.parseText(payloadJson)
 
         JsonFinderBinder.Recorder recorder = new JsonFinderBinder.Recorder()
-        recorder.useBinder(new SimpleVariableBinder("test-variable"))
+        recorder.useFetcher(new SimpleVariableFetcher("test-variable"))
         when:
         instance.getPathValue(path, payload, recorder)
 
@@ -261,50 +254,13 @@ class JsonFinderBinderSpec extends Specification {
         def payload = slurper.parseText(payloadJson)
         and:
         JsonFinderBinder.Recorder recorder = new JsonFinderBinder.Recorder()
-        recorder.useBinder(new SimpleVariableBinder("test-variable"))
+        recorder.useFetcher(new SimpleVariableFetcher("test-variable"))
 
         when:
         instance.getPathValue(path, payload, recorder)
 
         then:
         recorder.bindings()["test-variable"] == "123"
-    }
-
-    def "detect * being bound to various sized arrays"() {
-        given:
-        String jpayload = '''
-        {
-            "array1": [
-                {
-                    "member": "123"
-                }
-            ],
-            "array2": [
-                {
-                    "member": "456",
-                },
-                {
-                    "member": "789"
-                }
-            ]
-        }
-        '''
-        and:
-        def path1 = 'array1.[].member'
-        def path2 = 'array2.[].member'
-        and:
-        def payload = slurper.parseText(jpayload)
-        and:
-        JsonFinderBinder.Recorder recorder = new JsonFinderBinder.Recorder()
-
-        when:
-        ['one': path1, 'two': path2].each { String name, String path ->
-            recorder.useBinder (new SimpleVariableBinder("$name[*]"))
-            instance.getPathValue(path, payload, recorder)
-        }
-
-        then:
-        !recorder.hasUniformValues()
     }
 
     def "an scalar variable in an array is found in a model and its value is bound"() {
@@ -320,6 +276,44 @@ class JsonFinderBinderSpec extends Specification {
         found["ADD[1]"] == "5.6.7.8"
         found["ADD[2]"] == "9.10.11.12"
     }
+
+    // ---------
+
+    def "an scalar variable in a nested array is found in a model and its value is bound"() {
+        given:
+        def payload = slurper.parseText(
+        '''
+        {
+            "nested-addresses": [
+                [ "1.2.3.4", "5.6.7.8", "9.10.11.12" ], 
+                [ "11.22.33.44", "55.66.77.88" ], 
+                [ "111.222.333.444" ] 
+            ]
+        }
+        ''')
+
+        def model = slurper.parseText(
+        '''
+        {
+            "nested-addresses": [ 
+                [ "${ADD[^][*]}" ] 
+            ]
+        }
+        ''')
+
+        when:
+        def found = instance.process(model, payload).bindings()
+
+        then:
+        found["ADD[0][0]"] == "1.2.3.4"
+        found["ADD[0][1]"] == "5.6.7.8"
+        found["ADD[0][2]"] == "9.10.11.12"
+        found["ADD[1][0]"] == "11.22.33.44"
+        found["ADD[1][1]"] == "55.66.77.88"
+        found["ADD[2][0]"] == "111.222.333.444"
+    }
+
+    // ---------
 
     def "an scalar variable in an empty array is not an error"() {
         given:
@@ -345,19 +339,6 @@ class JsonFinderBinderSpec extends Specification {
         found["ADD[0]"] == "1.2.3.4"
         found["ADD[1]"] == "5.6.7.8"
         found["ADD[2]"] == "9.10.11.12"
-    }
-
-    def "array bindings of different sizes can be made visible"() {
-        given:
-        def model = slurper.parseText(array3Model())
-        def payload = slurper.parseText(array3Payload())
-
-        instance.logger = mockLogger
-        when:
-        instance.process(model, payload).bindings()
-
-        then:
-        1 * mockLogger.debug({ it =~ "ARRAY-SIZES" })
     }
 
     // This class is used on both the input and output side. Multiple variables
@@ -600,7 +581,7 @@ class JsonFinderBinderSpec extends Specification {
         def found = instance.process(model, payload).bindings()
 
         then:
-        found == ["ADD[0]": "1.2.3.4", "ADD[1]": "5.6.7.8", "ADD[2]": "9.10.11.12"]
+        isSubsetOf(found, ["ADD[0]": "1.2.3.4", "ADD[1]": "5.6.7.8", "ADD[2]": "9.10.11.12"])
     }
 
     def "an empty array should not create fake values (at [0])"() {
@@ -640,7 +621,40 @@ class JsonFinderBinderSpec extends Specification {
         def found = instance.process(model, payload).bindings()
 
         then:
-        found == ["ADD[0]": "1.2.3.4", "ADD[1]": "5.6.7.8", "ADD[2]": "9.10.11.12"]
+        isSubsetOf(found, ["ADD[0]": "1.2.3.4", "ADD[1]": "5.6.7.8", "ADD[2]": "9.10.11.12"])
+    }
+
+    def nestedListsPayload() {
+        '''
+        [ 
+            [ 
+                { 
+                    "complex": "array" 
+                }, 
+                { 
+                    "complex": "nested" 
+                } 
+            ], 
+            [ 
+                { 
+                    "complex": "lists" 
+                }, 
+                { 
+                    "complex": "maps" 
+                } 
+            ]
+        ]
+        '''
+    }
+
+    def nestedListsModel() {
+        '''
+        [ 
+            [ 
+                "${object-list[^][*]}" 
+            ] 
+        ]
+        '''
     }
 
     def "an array of arrays can have all the elements of the inner arrays in a single bound array"() {
@@ -652,14 +666,13 @@ class JsonFinderBinderSpec extends Specification {
         def found = instance.process(model, payload).bindings()
 
         then:
-        found.size() == 4
-        (0..3).each { index ->
-            String key = "object-list[${index}]"
-            def entry = found[key]
-            entry instanceof Map
-            entry.key == "complex"
-            entry.value == expectedNestedValues[index]
-        }
+        found == [
+                'object-list[0][0]': [ 'complex': 'array'],
+                'object-list[0][1]': [ 'complex': 'nested'],
+                'object-list[1][0]': [ 'complex': 'lists'],
+                'object-list[1][1]': [ 'complex': 'maps'],
+                '_[object-list[^][*]]': '[2,2]'
+        ]
     }
 
     def "wildcarding for matches is supported"() {
@@ -684,12 +697,12 @@ class JsonFinderBinderSpec extends Specification {
         def found = instance.process(model, payload).bindings()
 
         then:
-        found == ["LEFT[0]":  "1",
+        isSubsetOf(found, ["LEFT[0]":  "1",
                   "RIGHT[0]": "2",
                   "LEFT[1]":  "3",
                   "RIGHT[1]": "4",
                   "LEFT[2]":  "5",
-                  "RIGHT[2]": "6"]
+                  "RIGHT[2]": "6"])
     }
 
     def "special test cases from the past"() {
