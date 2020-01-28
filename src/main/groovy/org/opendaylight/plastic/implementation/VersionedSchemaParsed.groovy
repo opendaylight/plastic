@@ -159,14 +159,14 @@ abstract class VersionedSchemaParsed {
         Map results = [:]
 
         Variables vars = new Variables()
-
         values.each { k,v ->
-            if (vars.isGenericIndexed(k)) {
+            if (Variables.isGenericIndexed(k)) {
                 if (v instanceof List) {
                     List indexedVars = vars.generateManyIndexed(k, v.size())
                     indexedVars.eachWithIndex { String indexedVar, int i ->
                         results.putAt(indexedVar, isCollection(v[i]) ? v[i] : ""+v[i])
                     }
+                    Schemiterator.insertIteratorSpec(results, k, indexedVars)
                 }
                 else if (v instanceof Map)
                     throw new WantedListButFoundMapException(boundSchema, k);

@@ -31,7 +31,7 @@ class DefaultsSpec extends Specification {
             {
                 "scalar-value": 12345,
                 "blob-value": { "inside": 789 },
-                "array-value[*]": [ "av-1", "av-2" ]
+                "array-value[*]": [ "av-1", "av-2" ],
             }
             '''
 
