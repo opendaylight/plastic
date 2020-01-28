@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2019 Lumina Networks, Inc. All rights reserved.
+ * Copyright (c) 2019-2020 Lumina Networks, Inc. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
@@ -191,9 +191,10 @@ class JsonValuesInjectorSpec extends Specification {
 
     def "a simple array of scalar values is expanded properly"() {
         given:
-        def bound = ['ADDR[1]': "1.2.3.4",
-                     'ADDR[2]': "5.6.7.8",
-                     'ADDR[3]': "9.10.11.12"
+        def bound = ['ADDR[0]': "1.2.3.4",
+                     'ADDR[1]': "5.6.7.8",
+                     'ADDR[2]': "9.10.11.12",
+                     '_[ADDR[*]]': '[3]'
         ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
         {
@@ -231,7 +232,7 @@ class JsonValuesInjectorSpec extends Specification {
         [ 'a': 1 ]           | [ 'a': 1 ]
     }
 
-    def "partial value replacement use bound values of various types results in string values"() {
+    def "partial value replacement using bound values of scalar types results in string values"() {
         given:
         def bound = [ 'ABC': value ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
@@ -246,16 +247,14 @@ class JsonValuesInjectorSpec extends Specification {
         payloadAndOutput.test == expected
         where:
         value                | expected
-        null                 | ""
+        null                 | "abc "
         "1"                  | "abc 1"
         123                  | "abc 123"
         true                 | "abc true"
         12345678901234567890 | "abc 12345678901234567890"
-        [ 'a' ]              | [ 'a' ]
-        [ 'a': 1 ]           | [ 'a': 1 ]
     }
 
-    def "edge: partial value replacement for non-scalar bound values is full value replacement"() {
+    def "edge: partial value replacement for non-scalar bound values stringifies them"() {
         given:
         def bound = [ 'ABC': value ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
@@ -270,15 +269,16 @@ class JsonValuesInjectorSpec extends Specification {
         payloadAndOutput.test == expected
         where:
         value                | expected
-        [ 'a' ]              | [ 'a' ]
-        [ 'a': 1 ]           | [ 'a': 1 ]
+        [ 'a' ]              | 'abc [a]'
+        [ 'a': 1 ]           | "abc {a=1}"
     }
 
     def "a multi-variable array of scalar values is expanded properly"() {
         given:
-        def bound = ['ADDR[1]': "1.2.3.4",
-                     'ADDR[2]': "5.6.7.8",
-                     'ADDR[3]': "9.10.11.12"
+        def bound = ['ADDR[0]': "1.2.3.4",
+                     'ADDR[1]': "5.6.7.8",
+                     'ADDR[2]': "9.10.11.12",
+                     '_[ADDR[*]]': '[3]'
         ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
         {
@@ -290,10 +290,10 @@ class JsonValuesInjectorSpec extends Specification {
 
         then:
         payloadAndOutput.addresses == [ "AAA-1.2.3.4",
-                                        "AAA-5.6.7.8",
-                                        "AAA-9.10.11.12",
                                         "BBB-1.2.3.4",
+                                        "AAA-5.6.7.8",
                                         "BBB-5.6.7.8",
+                                        "AAA-9.10.11.12",
                                         "BBB-9.10.11.12" ]
     }
 
@@ -314,9 +314,10 @@ class JsonValuesInjectorSpec extends Specification {
 
     def "an array of object values is expanded properly"() {
         given:
-        def bound = ['ADDR[1]': "1.2.3.4",
-                     'ADDR[2]': "5.6.7.8",
-                     'ADDR[3]': "9.10.11.12",
+        def bound = ['ADDR[0]': "1.2.3.4",
+                     'ADDR[1]': "5.6.7.8",
+                     'ADDR[2]': "9.10.11.12",
+                     '_[ADDR[*]]': '[3]',
                      "EXTRA" : "foobar"
         ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
@@ -342,9 +343,10 @@ class JsonValuesInjectorSpec extends Specification {
 
     def "a mulitiple-variable array of object values is expanded properly"() {
         given:
-        def bound = ['ADDR[1]': "1.2.3.4",
-                     'ADDR[2]': "5.6.7.8",
-                     'ADDR[3]': "9.10.11.12",
+        def bound = ['ADDR[0]': "1.2.3.4",
+                     'ADDR[1]': "5.6.7.8",
+                     'ADDR[2]': "9.10.11.12",
+                     '_[ADDR[*]]': '[3]',
                      "EXTRA" : "foobar"
         ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
@@ -367,20 +369,22 @@ class JsonValuesInjectorSpec extends Specification {
         then:
         payloadAndOutput.components == [
                 [ "address" : "AA-1.2.3.4", "extra" : "AA-foobar" ],
-                [ "address" : "AA-5.6.7.8", "extra" : "AA-foobar" ],
-                [ "address" : "AA-9.10.11.12", "extra" : "AA-foobar"],
                 [ "address" : "BB-1.2.3.4", "extra" : "BB-foobar" ],
+                [ "address" : "AA-5.6.7.8", "extra" : "AA-foobar" ],
                 [ "address" : "BB-5.6.7.8", "extra" : "BB-foobar" ],
+                [ "address" : "AA-9.10.11.12", "extra" : "AA-foobar"],
                 [ "address" : "BB-9.10.11.12", "extra" : "BB-foobar"]
         ]
     }
 
     def "an array of object values is expanded properly with multiple variables in a single output"() {
         given:
-        def bound = ['ADDR[1]': "1.2.3.4",
-                     'ADDR[2]': "5.6.7.8",
-                     'LEN[1]' : 10,
-                     'LEN[2]' : 20
+        def bound = ['ADDR[0]': "1.2.3.4",
+                     'ADDR[1]': "5.6.7.8",
+                     '_[ADDR[*]]': '[2]',
+                     'LEN[0]' : 10,
+                     'LEN[1]' : 20,
+                     '_[LEN[*]]': '[2]'
         ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
         {
@@ -403,10 +407,12 @@ class JsonValuesInjectorSpec extends Specification {
 
     def "an array of objects with sub-object values is expanded properly with multiple variables in a single output"() {
         given:
-        def bound = ['ADDR[1]': "1.2.3.4",
-                     'ADDR[2]': "5.6.7.8",
-                     'LEN[1]' : 10,
-                     'LEN[2]' : 20,
+        def bound = ['ADDR[0]': "1.2.3.4",
+                     'ADDR[1]': "5.6.7.8",
+                     '_[ADDR[*]]': '[2]',
+                     'LEN[0]' : 10,
+                     'LEN[1]' : 20,
+                     '_[LEN[*]]': '[2]',
                      'UNUSED' : 'dummy' // bug defense: should not interfere with result
         ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
@@ -467,61 +473,5 @@ class JsonValuesInjectorSpec extends Specification {
 
         then:
         jsonModel['xyz'] == 15000000
-    }
-
-    def "recursively replace works for lists in lists"() {
-        given:
-        Variables vars = new Variables()
-        Object model = new JsonSlurper().parseText('''
-        {
-            "components": [
-                ["${ADDR[*]}/${LEN[*]}"]
-            ]
-        }
-        ''')
-        and:
-        Object expected = new JsonSlurper().parseText('''
-        {
-            "components": [
-                ["${ADDR[0]}/${LEN[0]}"]
-            ]
-        }
-        ''')
-        when:
-        instance.recursivelyReplace(model, vars.genericIndex(), "[0]")
-        then:
-        model == expected
-    }
-
-    def "recursively replace works for maps in lists"() {
-        given:
-        Variables vars = new Variables()
-        Object model = new JsonSlurper().parseText('''
-        {
-            "components": [
-                {
-                  "subcomponent": {
-                    "address": "${ADDR[*]}/${LEN[*]}",
-                  }
-                }
-            ]
-        }
-        ''')
-        and:
-        Object expected = new JsonSlurper().parseText('''
-        {
-            "components": [
-                {
-                  "subcomponent": {
-                    "address": "${ADDR[0]}/${LEN[0]}",
-                  }
-                }
-            ]
-        }
-        ''')
-        when:
-        instance.recursivelyReplace(model, vars.genericIndex(), "[0]")
-        then:
-        model == expected
     }
 }

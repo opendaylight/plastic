@@ -23,6 +23,13 @@ import org.opendaylight.plastic.implementation.PlasticException
 import spock.lang.Specification
 
 class MoVariablesSpec extends Specification {
+
+    def removeIterators(Map bindings) {
+        bindings.findAll { k,v ->
+            !k.startsWith('_')
+        }
+    }
+
     def "morpher variables can be empty"() {
         given:
         MoVariables instance = new MoVariables([:])
@@ -65,13 +72,23 @@ class MoVariablesSpec extends Specification {
         slice.size() == 2
     }
 
-    def "morpher array can include everything"() {
+    def "morpher array can include everything, but iterator does not contribute to size"() {
         given:
-        MoVariables instance = new MoVariables(['a[0]': 11, 'a[1]': 33, 'a[5]': 'abc'])
+        MoVariables instance = new MoVariables(['a[0]': 11, 'a[1]': 33, 'a[5]': 'abc', '_[a[*]]': '[6]'])
         when:
         MoArray slice = instance.asArray("a[*]")
         then:
-        slice.size() == instance.size()
+        slice.size() == instance.size()-1
+    }
+
+    def "missing iterator is added"() {
+        given:
+        Map bindings = ['a[0]': 11, 'a[1]': 33, 'a[5]': 'abc']
+        MoVariables instance = new MoVariables(bindings)
+        when:
+        instance.asArray("a[*]")
+        then:
+        bindings.size() == old(bindings.size())+1
     }
 
     def "morpher array must use a generic indexed variable or an error results"() {
@@ -138,7 +155,7 @@ class MoVariablesSpec extends Specification {
         when:
         instance.set(['0', '1', '2', '3', '4'])
         then:
-        original == ['a[0]': '0', 'a[1]': '1', 'a[2]': '2', 'a[3]': '3', 'a[4]': '4']
+        removeIterators(original) == ['a[0]': '0', 'a[1]': '1', 'a[2]': '2', 'a[3]': '3', 'a[4]': '4']
     }
 
     def "morpher array can be set to empty"() {
@@ -158,7 +175,7 @@ class MoVariablesSpec extends Specification {
         when:
         instance.set([])
         then:
-        original == [:]
+        removeIterators(original) == [:]
     }
 
     def "setting a morpher array item can be set (and affects original)"() {
@@ -282,6 +299,6 @@ class MoVariablesSpec extends Specification {
         expect:
         (0..2).each { i -> instance[i] = "${i+10}" }
         and:
-        underlying == ['a[0]':  '10', 'a[1]':  '11', 'a[2]':  '12']
+        removeIterators(underlying) == ['a[0]':  '10', 'a[1]':  '11', 'a[2]':  '12']
     }
 }
