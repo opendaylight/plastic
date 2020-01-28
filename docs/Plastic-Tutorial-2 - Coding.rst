@@ -44,7 +44,7 @@ Here is an example input schema showing a default value assigned to delay of "15
 is missing "max-delay-msec", then Plastic will use "15" as its value and will not generate an error.
 This value is interpreted as a string in this example.
 
-.. code-block:: JSON
+.. code-block:: json
 
   {
     "admin-status": "${status}",
@@ -55,7 +55,7 @@ This value is interpreted as a string in this example.
 A common usage is to set a blank value as the default, as show in the example input schema below. Here the
 status has no value after the equals sign, so blank is used.
 
-.. code-block:: JSON
+.. code-block:: json
 
   {
     "admin-status": "${status=}",
@@ -72,7 +72,7 @@ array is empty, please bind a single member.
 
 Here is an example of such a **confusing schema**
 
-.. code-block:: JSON
+.. code-block:: json
 
   {
     "deviceName": "${dName}",
@@ -88,7 +88,7 @@ Here is an example of such a **confusing schema**
 This one is "normal" because it does not seem to imply that a new array element will be created if the array
 is empty.
 
-.. code-block:: JSON
+.. code-block:: json
 
   {
     "deviceName": "${dName}",
@@ -104,7 +104,7 @@ is empty.
 Defaults can be programmatically passed into the translate() call via a stringified map of values.
 A JSON and XML version follow.
 
-.. code-block:: JSON
+.. code-block:: json
 
   {
     "adminStatus": "UP",
@@ -840,7 +840,7 @@ Encountering these errors in production usually means that the payload shape (ak
 This could be due to a malformed payload but more likely is a payload that was not considered by the designer
 of the morpher or classifier.
 
-.. code-block:: JSON
+.. code-block:: json
 
   {
     "admin": {
