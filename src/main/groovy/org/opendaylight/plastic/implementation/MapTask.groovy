@@ -46,14 +46,27 @@ class MapTask {
         }
     }
 
-    static class DangingOutputsException extends PlasticException {
+    static String noteOnIndexing(Set unmatchedVars) {
+        String result = ""
+        for (String unmatchedVar : unmatchedVars) {
+            if (Variables.isIndexed(unmatchedVar)) {
+                result = "Try using default values for indexed variables to avoid this issue."
+                break
+            }
+        }
+        result
+    }
+
+    static class DanglingOutputsException extends PlasticException {
 
         VersionedSchema input
         VersionedSchema output
         Set danglings
 
-        DangingOutputsException(VersionedSchema inS, VersionedSchema outS, Set danglings) {
-            super("PLASTIC-DANGL-OUT", "For (in-> ${inS}) (out-> ${outS}), the following output variables were not matched to input variables: " + danglings)
+        DanglingOutputsException(VersionedSchema inS, VersionedSchema outS, Set danglings) {
+            super("PLASTIC-DANGL-OUT", "For (in-> ${inS}) (out-> ${outS}), the following output variables were not matched " +
+                    "to input variables: ${danglings} " +
+                    MapTask.noteOnIndexing(danglings)) // Groovy bug requires qualified reference
 
             this.input = inS
             this.output = outS
@@ -68,7 +81,9 @@ class MapTask {
         Set unmatched
 
         DanglingOutputVariables(VersionedSchema inS, VersionedSchema outS, Set unmatchedVars) {
-            super("PLASTIC-DANGLING-OUT-VARS","For (in:${inS}) (out:${outS}), the following output variables had no matching inputs: ${unmatchedVars}")
+            super("PLASTIC-DANGLING-OUT-VARS","For (in:${inS}) (out:${outS}), the following output variables " +
+                    "had no matching inputs: ${unmatchedVars} " +
+                    MapTask.noteOnIndexing(unmatchedVars)) // Groovy bug requires qualified reference
 
             this.input = inS
             this.output = outS
@@ -136,7 +151,7 @@ class MapTask {
         }
 
         if (!danglingOutputs.isEmpty())
-            throw new DangingOutputsException(input.schema, output.schema, danglingOutputs)
+            throw new DanglingOutputsException(input.schema, output.schema, danglingOutputs)
 
         for (Morpher m : plan.morphers) {
             m.tweakParsed(parsedPayload.parsed, output.parsed)
@@ -215,7 +230,7 @@ class MapTask {
 
     private Map collectBindings(Map boundInputs, Map outputVars) {
         Variables vars = new Variables()
-        outputVars.collectEntries { ov, val ->
+        Map results = outputVars.collectEntries { ov, val ->
             if (vars.isGenericIndexed(ov)) {
                 boundInputs.each { k, v ->
                     if (vars.matches(k, ov))
@@ -225,6 +240,13 @@ class MapTask {
             else
                 [ ov, firstNonNull(boundInputs[ov], outputVars[ov]) ]
         }
+
+        boundInputs.each { k,v ->
+            if (k.startsWith('_'))
+                results.put(k, v)
+        }
+
+        results
     }
 
     private Object firstNonNull(Object... objs) {
@@ -235,8 +257,9 @@ class MapTask {
     }
 
     private void warnDanglingInputs(Set unhandledInputs) {
-        if (!unhandledInputs.isEmpty()) {
-            log.warn("For (in:${input.schema}) (out:${output.schema}), the following input variables had no matching outputs: "+ unhandledInputs)
+        def dangling = unhandledInputs.findAll { s -> !s.startsWith('_')}
+        if (!dangling.isEmpty()) {
+            log.warn("For (in:${input.schema}) (out:${output.schema}), the following input variables had no matching outputs: "+ dangling)
         }
     }
 

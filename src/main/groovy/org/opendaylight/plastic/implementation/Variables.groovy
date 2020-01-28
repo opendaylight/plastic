@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2019 Lumina Networks, Inc. All rights reserved.
+ * Copyright (c) 2019-2020 Lumina Networks, Inc. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
@@ -10,13 +10,16 @@
 
 package org.opendaylight.plastic.implementation
 
-import com.google.common.base.Splitter
 import groovy.transform.CompileStatic
 
 import java.util.regex.Pattern
 
 @CompileStatic
 class Variables {
+
+    static final char LBRACKET = '['
+    static final String[] ILLEGALS = [ "+", "<", ">", "\"", ".", "[", "]", "]", "{", "}", "(", ")", "*", "~", "^", "?", "&", "|", "@", "=", " " ]
+    static final String GOODINDICES = "[]*^0123456789"
 
     static class Finding {
         final String raw
@@ -30,6 +33,37 @@ class Variables {
     private static final Pattern envelopePattern = ~/\$\{(.+?)\}/
 
     private static final String[] emptyStrings = new String[0]
+
+    static boolean basenameContainsIllegals(String candidate) {
+        int here = candidate.indexOf((int)LBRACKET)
+        if (here >= 0)
+            candidate = candidate.substring(0, here)
+
+        for (String c : ILLEGALS) {
+            if (candidate.indexOf(c) > -1)
+                return true
+        }
+        false
+    }
+
+    static boolean wellFormedIndices(String candidate) {
+        int here = candidate.indexOf((int)LBRACKET)
+        if (here >= 0) {
+            for (int i = here; i< candidate.length(); i++) {
+                if (GOODINDICES.indexOf((int)candidate.charAt(i)) < 0)
+                    return false
+            }
+        }
+        true
+    }
+
+    static String basename(String candidate) {
+        int here = candidate.indexOf((int)LBRACKET)
+        if (here >= 0)
+            candidate.substring(0, here)
+        else
+            candidate
+    }
 
     static String adorn(String candidate) {
         StringBuilder sb = new StringBuilder("\${")
@@ -49,22 +83,83 @@ class Variables {
         candidate.startsWith('${') && candidate.endsWith('}')
     }
 
+    static boolean isInternal(String candidate) {
+        candidate.startsWith('_')
+    }
+
     static String patternQuoted(String candidate) {
         Pattern.quote(candidate)
     }
 
+    // TODO: remove unused
     static String adornedAndQuoted(String candidate) {
         patternQuoted(adorn(candidate))
+    }
+
+    static String alternativeName(String candidate) {
+        if (candidate) {
+            int firstCareted = candidate.indexOf('[^]')
+            int lastAsterisked = candidate.lastIndexOf('[*]')
+            if (firstCareted < 0 && lastAsterisked > -1) {
+                StringBuilder sb = new StringBuilder (candidate.replace('[*]', '[^]'))
+                sb.setCharAt(lastAsterisked+1, '*' as char)
+                return sb.toString()
+            }
+            else if (firstCareted > -1 && lastAsterisked > -1) {
+                return candidate.replace('[^]', '[*]')
+            }
+        }
+
+        return candidate
     }
 
     // Hotspot: don't use regex
 
     static boolean isGenericIndexed(String candidate) {
-        candidate.contains("[*]")
+        !candidate.startsWith('_') && candidate.indexOf('[') > -1 && (candidate.contains("[*]") || candidate.contains("[^]"))
     }
 
-    static String genericIndex() {
-        return "[*]"
+    static boolean mightBeIndexed(String candidate) {
+        candidate != null && candidate.indexOf('[') > -1 && candidate.indexOf(']') > -1
+    }
+
+    static boolean isSingular(String candidate) {
+        if (candidate == null)
+            return false
+        if (!candidate.startsWith('${'))
+            return false
+        if (!candidate.endsWith('}'))
+            return false
+        if (containsMultiple(candidate, '$'))
+            return false
+        if (containsMultiple(candidate, '{'))
+            return false
+        if (containsMultiple(candidate, '}'))
+            return false
+        true
+    }
+
+    static private boolean containsMultiple(String candidate, String target) {
+        int first = candidate.indexOf(target)
+        if (first < 0)
+            return false
+        if (first == candidate.length()-target.length()-1)
+            return false
+        int second = candidate.indexOf(target, first+1)
+        second > -1
+    }
+
+    static String substring(String varName, String searchHere) {
+        StringBuilder sb = new StringBuilder()
+        sb.append('${')
+        sb.append(varName)
+        int left = searchHere.indexOf(sb.toString())
+        if (left > -1) {
+            int right = searchHere.indexOf('}', left+1)
+            if (right > -1)
+                return searchHere.substring(left, right+1)
+        }
+        ""
     }
 
     // Hotspot: don't use regex
@@ -77,7 +172,7 @@ class Variables {
                 if (right > -1 && right > (left+1)) {
                     for (int i = left+1; i< right; i++) {
                         int ch = candidate.charAt(i)
-                        if ('0123456789*'.indexOf(ch) > -1)
+                        if ('0123456789*^'.indexOf(ch) > -1)
                             return true
                     }
                 }
@@ -92,24 +187,42 @@ class Variables {
 
     static String extractIndex(String candidate) {
         int left = candidate.indexOf('[')
-        int right = candidate.indexOf(']')
+        int right = candidate.lastIndexOf(']')
         (left < right) ? candidate.substring(left, right+1) : ""
     }
 
     static String generifyIndex(String candidate) {
-        if (!isGenericIndexed(candidate)) {
-
         // avoiding regex for speed
 
-            int left = candidate.indexOf('[')
-            int right = candidate.lastIndexOf(']')
-            if (left >= 0 && right >= 0 && right > left) {
-                StringBuilder sb = new StringBuilder()
-                sb.append(candidate.substring(0, left + 1))
-                sb.append('*')
-                sb.append(candidate.substring(right))
-                return sb.toString()
+        if (!isGenericIndexed(candidate)) {
+            StringBuilder sb = new StringBuilder()
+            int next = 0
+
+            while (next < candidate.length()) {
+                int left = candidate.indexOf('[', next)
+                if (left > -1) {
+                    int right = candidate.indexOf(']', left)
+                    if (right > -1 && right > (left + 1)) {
+                        sb.append(candidate.substring(next,left+1))
+                        sb.append('*')
+                        next = right
+                    }
+                    else if (right > -1) {
+                        sb.append(candidate.substring(left,right))
+                        next = right
+                    }
+                    else {
+                        sb.append(candidate.substring(left))
+                        next = candidate.length()
+                    }
+                }
+                else {
+                    sb.append(candidate.substring(next))
+                    next = candidate.length()
+                }
             }
+
+            candidate = sb.toString()
         }
 
         candidate
@@ -151,14 +264,35 @@ class Variables {
         results
     }
 
-    static List generateManyIndexed(String candidate, int count) {
-        List result = []
-        if (isGenericIndexed(candidate) && count > 0) {
-            for (i in (0..count-1)) {
-                result.add(candidate.replace("*", Integer.toString(i)))
+    static List<String> generateManyIndexed(String candidate, long[] counts) {
+        List<String> result = []
+        if (isGenericIndexed(candidate) && counts.length > 0) {
+            MultiModuloCounter mmc = new MultiModuloCounter(counts)
+            if (mmc.isCountable() && !mmc.isZero()) {
+                while (true) {
+                    long[] indices = mmc.value()
+                    String c = candidate
+                    for (int i = 0; i < indices.length; i++) {
+                        c = replaceFirst(c, '*', Long.toString(indices[i]))
+                    }
+                    result.add(c)
+                    if (mmc.isDone())
+                        break
+                    mmc.increment()
+                }
             }
         }
         result
+    }
+
+    private static String replaceFirst(String input, String from, String to) {
+
+        StringBuilder sb = new StringBuilder(input);
+        int where = sb.indexOf(from);
+        if (where > -1)
+            sb.replace(where, where + from.length(), to);
+
+        return sb.toString();
     }
 
     static String generateAsIndexed(String candidate, int index) {
@@ -226,6 +360,7 @@ class Variables {
 
     private String raw = ""
     private Map<String,Finding> foundNames = [:]
+    private Map<String,Finding> alternativeNames = [:]
     private String first = ""
 
     Variables() {
@@ -234,6 +369,8 @@ class Variables {
 
     Variables(String candidates) {
         foundNames = parse(candidates)
+        validateNames()
+        replicateAlternatives()
         initialized()
     }
 
@@ -247,8 +384,29 @@ class Variables {
         initialized()
     }
 
+    private void validateNames() {
+        foundNames.each { k,v ->
+            if (basenameContainsIllegals(k))
+                throw new PlasticException("PLASTIC-VAR-NAME-ILLEGAL", "The variable name $k contains one of the illegal characters $ILLEGALS")
+            if (!wellFormedIndices(k))
+                throw new PlasticException("PLASTIC-VAR-NAME-BAD-GENERIC", "The variable name $k has a badly formed array index")
+        }
+    }
+
     void toEach(Closure cs) {
         foundNames.each { Object k, Finding f -> cs(k,f.value) }
+    }
+
+    // Now that generic indexes can be composed of * and ^, we don't want to store
+    // all permutations, so force everything into a generic key with only *
+    //
+    private void replicateAlternatives() {
+        // modifying while iterating means use a copy
+        Set<String> names = new HashSet(foundNames.keySet())
+        for (String name : names) {
+            String normalizedGeneric = name.replace('[^]', '[*]')
+            alternativeNames.put(normalizedGeneric, foundNames[name])
+        }
     }
 
     private void initialized() {
@@ -312,6 +470,9 @@ class Variables {
         if (foundNames.containsKey(generic))
             return (foundNames[generic].value != null)
 
+        if (alternativeNames.containsKey(generic))
+            return (alternativeNames[generic].value != null)
+
         false
     }
 
@@ -321,6 +482,14 @@ class Variables {
         List<String> results = []
         foundNames.values().each { Finding f ->
             results.add(f.raw)
+        }
+        results
+    }
+
+    Map<String,String> getNameToRawMapping() {
+        Map<String,String> results = [:]
+        foundNames.each { String name,Finding f ->
+            results.put(name, f.raw)
         }
         results
     }

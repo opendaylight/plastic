@@ -68,14 +68,14 @@ class ParsedJsonSpec extends Specification {
         given:
         ParsedJson instance = new ParsedJson(asBoundSchema('{ "abc[*]": [ "a", "b", "c" ] }'))
         expect:
-        instance.asDefaults() ==  ['abc[0]': "a", 'abc[1]': "b", 'abc[2]': "c" ]
+        instance.asDefaults() ==  ['abc[0]': "a", 'abc[1]': "b", 'abc[2]': "c", '_[abc[*]]': '[3]' ]
     }
 
     def "indexed variables can get non-scalar default values"() {
         given:
         ParsedJson instance = new ParsedJson(asBoundSchema('{ "abc[*]": [ { "value": "a" }, { "value": "b" }, { "value": "c" } ] }'))
         expect:
-        instance.asDefaults() ==  ['abc[0]': ["value": "a"], 'abc[1]': ["value": "b"], 'abc[2]': ["value": "c"] ]
+        instance.asDefaults() ==  ['abc[0]': ["value": "a"], 'abc[1]': ["value": "b"], 'abc[2]': ["value": "c"], '_[abc[*]]': '[3]' ]
     }
 
     def "non-map is flagged as a bad defaults collection"() {
