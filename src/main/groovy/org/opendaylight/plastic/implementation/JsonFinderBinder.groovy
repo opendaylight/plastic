@@ -78,31 +78,10 @@ class JsonFinderBinder {
             }
             else if (value instanceof String || value instanceof GString) {
                 String fullpath = concatPath(path, protect(key))
-                String svalue = (String) value
-                if (WildCardMatcher.usesWildcarding(svalue)) {
-                    WildCardMatcher wild = new WildCardMatcher(svalue)
-                    seenPaths.put(fullpath, wild)
-                    wild.variables.toEach { String var, Object val ->
-                        seenVars[var] = val
-                    }
-                }
-                else {
-                    Variables vars = new Variables(svalue)
-                    if (vars.hasMultiple())
-                        logger.warn("PLASTIC-MULT-IN-VARS: {}", vars.raw())
-
-                    if (vars.isPresent()) {
-                        seenPaths.put(fullpath, new SimpleVariableBinder(vars.names()))
-                        vars.toEach { String var, Object val ->
-                            seenVars[var] = val
-                        }
-                    }
-                }
+                pathsFromLeaf(fullpath, (String) value, seenPaths, seenVars, path)
             }
         }
     }
-
-    // TODO: tech debt - share the logic above and below rather than repeating
 
     private void pathsFromList(List<Object> list, Map<String,VariablesBinder> seenPaths, Map<String,Object> seenVars, String path) {
         list.each { entry ->
@@ -113,26 +92,28 @@ class JsonFinderBinder {
                 pathsFromList((List<Object>)entry, seenPaths, seenVars, concatPath(path, "[]"))
             }
             else if (entry instanceof String || entry instanceof GString) {
-                String svalue = (String) entry
-                if (WildCardMatcher.usesWildcarding(svalue)) {
-                    WildCardMatcher wild = new WildCardMatcher(svalue)
-                    seenPaths.put(path, wild)
-                    wild.variables.toEach { String var, Object val ->
-                        seenVars[var] = val
-                    }
-                }
-                else {
-                    Variables vars = new Variables(svalue)
+                pathsFromLeaf(path, (String) entry, seenPaths, seenVars, path)
+            }
+        }
+    }
 
-                    if (vars.hasMultiple())
-                        logger.warn("PLASTIC-MULT-IN-VARS: {}", vars.raw())
+    private void pathsFromLeaf(String fullPath, String value, Map<String,VariablesBinder> seenPaths, Map<String,Object> seenVars, String path) {
+        if (WildCardMatcher.usesWildcarding(value)) {
+            WildCardMatcher wild = new WildCardMatcher(value)
+            seenPaths.put(fullPath, wild)
+            wild.variables.toEach { String var, Object val ->
+                seenVars[var] = val
+            }
+        }
+        else {
+            Variables vars = new Variables(value)
+            if (vars.hasMultiple())
+                logger.warn("PLASTIC-MULT-IN-VARS: {}", vars.raw())
 
-                    if (vars.isPresent()) {
-                        seenPaths.put(path, new SimpleVariableBinder(vars.names()))
-                        vars.toEach { String var, Object val ->
-                            seenVars[var] = val
-                        }
-                    }
+            if (vars.isPresent()) {
+                seenPaths.put(fullPath, new SimpleVariableBinder(vars.names()))
+                vars.toEach { String var, Object val ->
+                    seenVars[var] = val
                 }
             }
         }

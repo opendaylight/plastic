@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2019 Lumina Networks, Inc. All rights reserved.
+ * Copyright (c) 2019-2020 Lumina Networks, Inc. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
@@ -10,7 +10,6 @@
 
 package org.opendaylight.plastic.implementation
 
-import com.google.common.base.Splitter
 import groovy.transform.CompileStatic
 
 import java.util.regex.Pattern
@@ -60,7 +59,7 @@ class Variables {
     // Hotspot: don't use regex
 
     static boolean isGenericIndexed(String candidate) {
-        candidate.contains("[*]")
+        candidate.indexOf('[') > -1 && (candidate.contains("[*]") || candidate.contains("[^]"))
     }
 
     static String genericIndex() {
@@ -77,7 +76,7 @@ class Variables {
                 if (right > -1 && right > (left+1)) {
                     for (int i = left+1; i< right; i++) {
                         int ch = candidate.charAt(i)
-                        if ('0123456789*'.indexOf(ch) > -1)
+                        if ('0123456789*^'.indexOf(ch) > -1)
                             return true
                     }
                 }
@@ -92,24 +91,42 @@ class Variables {
 
     static String extractIndex(String candidate) {
         int left = candidate.indexOf('[')
-        int right = candidate.indexOf(']')
+        int right = candidate.lastIndexOf(']')
         (left < right) ? candidate.substring(left, right+1) : ""
     }
 
     static String generifyIndex(String candidate) {
-        if (!isGenericIndexed(candidate)) {
-
         // avoiding regex for speed
 
-            int left = candidate.indexOf('[')
-            int right = candidate.lastIndexOf(']')
-            if (left >= 0 && right >= 0 && right > left) {
-                StringBuilder sb = new StringBuilder()
-                sb.append(candidate.substring(0, left + 1))
-                sb.append('*')
-                sb.append(candidate.substring(right))
-                return sb.toString()
+        if (!isGenericIndexed(candidate)) {
+            StringBuilder sb = new StringBuilder()
+            int next = 0
+
+            while (next < candidate.length()) {
+                int left = candidate.indexOf('[', next)
+                if (left > -1) {
+                    int right = candidate.indexOf(']', left)
+                    if (right > -1 && right > (left + 1)) {
+                        sb.append(candidate.substring(next,left+1))
+                        sb.append('*')
+                        next = right
+                    }
+                    else if (right > -1) {
+                        sb.append(candidate.substring(left,right))
+                        next = right
+                    }
+                    else {
+                        sb.append(candidate.substring(left))
+                        next = candidate.length()
+                    }
+                }
+                else {
+                    sb.append(candidate.substring(next))
+                    next = candidate.length()
+                }
             }
+
+            candidate = sb.toString()
         }
 
         candidate
@@ -151,14 +168,35 @@ class Variables {
         results
     }
 
-    static List generateManyIndexed(String candidate, int count) {
-        List result = []
-        if (isGenericIndexed(candidate) && count > 0) {
-            for (i in (0..count-1)) {
-                result.add(candidate.replace("*", Integer.toString(i)))
+    static List<String> generateManyIndexed(String candidate, long[] counts) {
+        List<String> result = []
+        if (isGenericIndexed(candidate) && counts.length > 0) {
+            MultiModuloCounter mmc = new MultiModuloCounter(counts)
+            if (mmc.isCountable() && !mmc.isZero()) {
+                while (true) {
+                    long[] indices = mmc.value()
+                    String c = candidate
+                    for (int i = 0; i < indices.length; i++) {
+                        c = replaceFirst(c, '*', Long.toString(indices[i]))
+                    }
+                    result.add(c)
+                    if (mmc.isDone())
+                        break
+                    mmc.increment()
+                }
             }
         }
         result
+    }
+
+    private static String replaceFirst(String input, String from, String to) {
+
+        StringBuilder sb = new StringBuilder(input);
+        int where = sb.indexOf(from);
+        if (where > -1)
+            sb.replace(where, where + from.length(), to);
+
+        return sb.toString();
     }
 
     static String generateAsIndexed(String candidate, int index) {
@@ -226,6 +264,7 @@ class Variables {
 
     private String raw = ""
     private Map<String,Finding> foundNames = [:]
+    private Map<String,Finding> alternativeNames = [:]
     private String first = ""
 
     Variables() {
@@ -234,6 +273,7 @@ class Variables {
 
     Variables(String candidates) {
         foundNames = parse(candidates)
+        replicateAlternatives()
         initialized()
     }
 
@@ -249,6 +289,18 @@ class Variables {
 
     void toEach(Closure cs) {
         foundNames.each { Object k, Finding f -> cs(k,f.value) }
+    }
+
+    // Now that generic indexes can be composed of * and ^, we don't want to store
+    // all permutations, so force everything into a generic key with only *
+    //
+    private void replicateAlternatives() {
+        // modifying while iterating means use a copy
+        Set<String> names = new HashSet(foundNames.keySet())
+        for (String name : names) {
+            String normalizedGeneric = name.replace('[^]', '[*]')
+            alternativeNames.put(normalizedGeneric, foundNames[name])
+        }
     }
 
     private void initialized() {
@@ -311,6 +363,9 @@ class Variables {
         String generic = generifyIndex(candidate)
         if (foundNames.containsKey(generic))
             return (foundNames[generic].value != null)
+
+        if (alternativeNames.containsKey(generic))
+            return (alternativeNames[generic].value != null)
 
         false
     }

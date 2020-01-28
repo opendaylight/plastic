@@ -743,8 +743,8 @@ You can use the command line runner and a very simple input/output schema to tes
 Addenda
 ^^^^^^^
 
-The Wrapping Use Case
-+++++++++++++++++++++
+Over-specification and the Wrapping Use Case
+++++++++++++++++++++++++++++++++++++++++++++
 
 A fairly common use case for translation is to take a portion (or the full content) of the incoming
 payload produce a wrapped verison of it as output. There are a couple of ways to approach this problem.
@@ -791,6 +791,7 @@ The latter is superior in every way.
 * It is immune to changes in the schema under "network-element".
 * It is a less complex task because the extra variable values do not need to be individually handled.
 
+The first simplistic attempt is an example of over-specification.
 
 Appendix
 ~~~~~~~~
