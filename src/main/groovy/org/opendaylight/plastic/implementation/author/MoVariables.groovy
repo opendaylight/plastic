@@ -10,7 +10,7 @@
 
 package org.opendaylight.plastic.implementation.author
 
-
+import org.opendaylight.plastic.implementation.Schemiterator
 import org.opendaylight.plastic.implementation.Variables
 import org.opendaylight.plastic.implementation.PlasticException
 
@@ -137,6 +137,7 @@ class MoArray {
     private Map bindings
     private Set keys
     private String sliceName
+    private Schemiterator iterator
 
     private List<String> lazyOrderedKeys = []
     private List<Object> lazyOrderedValues = []
@@ -147,6 +148,28 @@ class MoArray {
         this.sliceName = variable
         this.bindings = varBindings
         this.keys = variables.matches(bindings, variable)
+
+        ensureIterator()
+    }
+
+    private void ensureIterator() {
+        if (Schemiterator.hasSpec(sliceName, bindings)) {
+            iterator = new Schemiterator(sliceName)
+            iterator.readSpecFrom(bindings)
+        }
+        else
+            updateIterator()
+    }
+
+    // Only support for single dimension - if more wanted, then client
+    // must write ad hoc logic
+    //
+    // For older client logic, make sure there is an iterator spec in the
+    // bindings, or none of the array logic will work
+    //
+    private void updateIterator() {
+        iterator = new Schemiterator(sliceName, keys.size())
+        iterator.writeSpecTo(bindings)
     }
 
     List orderedKeys() {
@@ -204,11 +227,17 @@ class MoArray {
             bindings.put(newVars[i], values[i])
             keys.add(newVars[i])
         }
+
+        updateIterator()
     }
 
     void add(Object value) {
         int size = bindings.size();
+        size-- // do not count the iterator
         forcePutAt(size, value)
+
+        iterator = new Schemiterator(sliceName, keys.size())
+        iterator.writeSpecTo(bindings)
     }
 
     private void throwIfInvalidIndex(int index) {

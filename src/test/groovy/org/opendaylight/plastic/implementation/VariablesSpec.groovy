@@ -43,6 +43,21 @@ class VariablesSpec extends Specification {
         '$ {abcd}'        | false
     }
 
+    def "should catch illegal characters in plastic variable names"() {
+        when:
+        new Variables(input)
+        then:
+        thrown (PlasticException)
+        where:
+        input             | _
+        '${a.}'           | _
+        '${a?}'           | _
+        '${a*}'           | _
+        '${abc[?]}'       | _
+        '${abc[&]%}'      | _
+        '${a b c}'        | _
+    }
+
     def "can custom process each found plastic variable"() {
         given:
         Variables instance = new Variables("\${a}\${b}\${c}")
@@ -59,6 +74,17 @@ class VariablesSpec extends Specification {
         Variables.adorn("hyphen-ated") == '${hyphen-ated}'
     }
 
+    def "substring can show the raw location of a variable"() {
+        expect:
+        Variables.substring(name,search) == expected
+        where:
+        name            | search                      | expected
+        "abc"           | 'bannana boat'              | ''
+        'abc[]'         | '${abc[]} boat'             | '${abc[]}'
+        'abc[^][*]'     | 'foo ${abc[^][*]} bar'      | '${abc[^][*]}'
+        'abc[^][*]'     | 'foo ${abc[^][*]=123} bar'  | '${abc[^][*]=123}'
+    }
+
     def "indexed variables can be recognized"() {
         expect:
         Variables.isIndexed(input) == expected
@@ -72,46 +98,58 @@ class VariablesSpec extends Specification {
         "abc*]"      | false
         "abc[]"      | false
         "abc[*]"     | true
+        "abc[^]"     | true
         "abc[0]"     | true
         "abc[1234]"  | true
+        "abc[0][0]"  | true
+        "abc[^][*]"  | true
     }
 
     def "generic indexed variables can be recognized"() {
         expect:
         Variables.isGenericIndexed(input) == expected
         where:
-        input       | expected
-        ""          | false
-        "abc"       | false
-        '${abc}'    | false
-        "abc[*]"    | true
-        '${abc[*]}' | true
+        input             | expected
+        ""                | false
+        "abc"             | false
+        '${abc}'          | false
+        "abc[*]"          | true
+        '${abc[*]}'       | true
+        "abc[^]"          | true
+        '${abc[^]}'       | true
+        '${abc[^][*]}'    | true
+        '${ghi[^][^][3]}' | true
+        '${ghi[*][7][3]}' | true
     }
 
     def "indexes can be generified"() {
         expect:
         Variables.generifyIndex(input) == expected
         where:
-        input           | expected
-        '${abc}'        | '${abc}'
-        'def[1]'        | 'def[*]'
-        '${ghi[1]}'     | '${ghi[*]}'
-        '${ghi[1]=345}' | '${ghi[*]=345}'
-        '${ghi[*]=345}' | '${ghi[*]=345}'
+        input             | expected
+        '${abc}'          | '${abc}'
+        'def[1]'          | 'def[*]'
+        '${ghi[1]}'       | '${ghi[*]}'
+        '${ghi[1]=345}'   | '${ghi[*]=345}'
+        '${ghi[*]=345}'   | '${ghi[*]=345}'
+        '${ghi[^]=345}'   | '${ghi[^]=345}'
+        '${ghi[1][2][3]}' | '${ghi[*][*][*]}'
+        '${ghi[^][^][3]}' | '${ghi[^][^][3]}'
     }
 
     def "individual indices can be extracted" () {
         given:
-        Variables instance = new Variables(['${abc[1]}', '${def[10]}', '${ghi[100]}', 'jkl' ] as String[])
+        Variables instance = new Variables(['${abc[1]}', '${def[10]}', '${ghi[100]}', 'jkl', '$xyz[3][4][5]}' ] as String[])
         when:
         def found = instance.extractIndices()
         then:
-        found == [ '[1]', '[10]', '[100]']
+        found == [ '[1]', '[10]', '[100]', '[3][4][5]' ]
     }
 
     def "specific indexed variables can be generated from a generic indexed variable"() {
         expect:
-        Variables.generateManyIndexed("abc[*]", 3) == ["abc[0]", "abc[1]", "abc[2]" ]
+        Variables.generateManyIndexed("abc[*]", 3) == [ "abc[0]", "abc[1]", "abc[2]" ]
+        Variables.generateManyIndexed("abc[*][*]", 2, 3) == [ "abc[0][0]", "abc[0][1]", "abc[0][2]", "abc[1][0]", "abc[1][1]", "abc[1][2]" ]
     }
 
     def "no indexed variables are generaged from a non-indexed variable"() {
@@ -122,19 +160,23 @@ class VariablesSpec extends Specification {
     def "no indexed variables are generaged from a nonsense count"() {
         expect:
         Variables.generateManyIndexed("abc[*]", -3) == []
+        Variables.generateManyIndexed("abc[*]", 0) == []
     }
 
     def "matching works"() {
         expect:
         Variables.matches(s1, s2) == expected
         where:
-        s1       | s2       | expected
-        ""       | ""       | true
-        "abc"    | "abc"    | true
-        "abc[1]" | "abc[1]" | true
-        "abc[1]" | "abc[*]" | true
-        "abc"    | "def"    | false
-        "abc[1]" | "abc[2]" | false
+        s1           | s2           | expected
+        ""           | ""           | true
+        "abc"        | "abc"        | true
+        "abc[1]"     | "abc[1]"     | true
+        "abc[1]"     | "abc[*]"     | true
+        "abc[2][1]"  | "abc[*][*]"  | true
+        "abc[2][1]"  | "abc[^][*]"  | true
+        "abc"        | "def"        | false
+        "abc[1]"     | "abc[2]"     | false
+        "abc[2][1]"  | "abc[3][4]"  | false
     }
 
     def "multiple matching works"() {
@@ -157,12 +199,18 @@ class VariablesSpec extends Specification {
         expect:
         instance.hasValue(name) == present
         where:
-        input        | name    | present
-        "\${a}"      | "a"     | false
-        "\${a}"      | "b"     | false
-        "\${a=}"     | "a"     | true
-        "\${a=1}"    | "a"     | true
-        "\${a[*]=1}" | "a[0]"  | true
+        input           | name       | present
+        '${a[^][*]=1}'  | 'a[0][0]'  | true
+        '${a}'          | 'a'        | false
+        '${a}'          | 'b'        | false
+        '${a=}'         | 'a'        | true
+        '${a=1}'        | 'a'        | true
+        '${a[*]}'       | 'a[0]'     | false
+        '${a[*]=1}'     | 'a[0]'     | true
+        '${a[^]}'       | 'a[0]'     | false
+        '${a[^]=1}'     | 'a[0]'     | true
+        '${a[^][*]}'    | 'a[0][0]'  | false
+        '${a[^][^]=1}'  | 'a[0][0]'  | true
     }
 
     @Unroll
@@ -187,11 +235,13 @@ class VariablesSpec extends Specification {
         expect:
         instance.getRawNames() == expected
         where:
-        input           | expected
-        ''              | []
-        '\${a}'         | ['\${a}']
-        '\${a}\${b}'    | ['\${a}', '\${b}']
-        '\${a[*]}\${b}' | ['\${a[*]}', '\${b}']
+        input              | expected
+        ''                 | []
+        '${a}'             | ['${a}']
+        '${a}${b}'         | ['${a}', '${b}']
+        '${a[*]}${b}'      | ['${a[*]}', '${b}']
+        '${a[*][*]}${b}'   | ['${a[*][*]}', '${b}']
+        '${a[^][*]}${b}'   | ['${a[^][*]}', '${b}']
     }
 
     @Unroll
@@ -213,5 +263,21 @@ class VariablesSpec extends Specification {
 
         '${a'           | [ '${a' ]
         'a}'            | [ 'a}' ]
+    }
+
+    @Unroll
+    def "#input indexed variables have alternative names"() {
+        expect:
+        Variables.alternativeName(input) == expected
+        where:
+        input              | expected
+        ''                 | ''
+        'abc'              | 'abc'
+        '${a}'             | '${a}'
+        '${a[*]}'          | '${a[*]}'
+        '${a[*][*]}'       | '${a[^][*]}'
+        '${a[^][*]}'       | '${a[*][*]}'
+        '${a[*][*][*]}'    | '${a[^][^][*]}'
+        '${a[^][^][*]}'    | '${a[*][*][*]}'
     }
 }

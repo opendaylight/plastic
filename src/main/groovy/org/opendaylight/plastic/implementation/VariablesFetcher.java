@@ -13,7 +13,7 @@ import java.util.List;
 /*
  * Defines a mechanism for retrieving variable bindings from a target string
  */
-public interface VariablesBinder {
+public interface VariablesFetcher {
 
     /*
      * Empty or null candidate results in an empty (not null) set of bindings
