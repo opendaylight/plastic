@@ -10,16 +10,16 @@ package org.opendaylight.plastic.implementation
 
 import com.google.common.base.Preconditions
 
-class SimpleVariableBinder implements VariablesBinder {
+class SimpleVariableFetcher implements VariablesFetcher {
 
     final List<String> varNames = new ArrayList<>()
 
-    SimpleVariableBinder(String name) {
+    SimpleVariableFetcher(String name) {
         Preconditions.checkArgument(name != null && !name.isEmpty())
         varNames.add(name)
     }
 
-    SimpleVariableBinder(Set<String> names) {
+    SimpleVariableFetcher(Set<String> names) {
         Preconditions.checkArgument(names != null && !names.isEmpty())
         this.varNames.addAll(names)
     }

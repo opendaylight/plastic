@@ -218,7 +218,7 @@ class JsonFinderBinderSpec extends Specification {
 
     def "variables bound to paths fetch their values from a payload"() {
         given:
-        def pathVars = ['uni.[].nui-id': new SimpleVariableBinder('nui-id')]
+        def pathVars = ['uni.[].nui-id': new SimpleVariableFetcher('nui-id')]
 
         def payloadJson = testPayload()
         def payload = slurper.parseText(payloadJson)
@@ -237,7 +237,7 @@ class JsonFinderBinderSpec extends Specification {
         def payload = slurper.parseText(payloadJson)
 
         JsonFinderBinder.Recorder recorder = new JsonFinderBinder.Recorder()
-        recorder.useBinder(new SimpleVariableBinder("test-variable"))
+        recorder.useFetcher(new SimpleVariableFetcher("test-variable"))
         when:
         instance.getPathValue(path, payload, recorder)
 
@@ -261,7 +261,7 @@ class JsonFinderBinderSpec extends Specification {
         def payload = slurper.parseText(payloadJson)
         and:
         JsonFinderBinder.Recorder recorder = new JsonFinderBinder.Recorder()
-        recorder.useBinder(new SimpleVariableBinder("test-variable"))
+        recorder.useFetcher(new SimpleVariableFetcher("test-variable"))
 
         when:
         instance.getPathValue(path, payload, recorder)
@@ -299,7 +299,7 @@ class JsonFinderBinderSpec extends Specification {
 
         when:
         ['one': path1, 'two': path2].each { String name, String path ->
-            recorder.useBinder (new SimpleVariableBinder("$name[*]"))
+            recorder.useFetcher (new SimpleVariableFetcher("$name[*]"))
             instance.getPathValue(path, payload, recorder)
         }
 
@@ -320,6 +320,44 @@ class JsonFinderBinderSpec extends Specification {
         found["ADD[1]"] == "5.6.7.8"
         found["ADD[2]"] == "9.10.11.12"
     }
+
+    // ---------
+
+    def "an scalar variable in a nested array is found in a model and its value is bound"() {
+        given:
+        def payload = slurper.parseText(
+        '''
+        {
+            "nested-addresses": [
+                [ "1.2.3.4", "5.6.7.8", "9.10.11.12" ], 
+                [ "11.22.33.44", "55.66.77.88" ], 
+                [ "111.222.333.444" ] 
+            ]
+        }
+        ''')
+
+        def model = slurper.parseText(
+        '''
+        {
+            "nested-addresses": [ 
+                [ "${ADD[^][*]}" ] 
+            ]
+        }
+        ''')
+
+        when:
+        def found = instance.process(model, payload).bindings()
+
+        then:
+        found["ADD[0][0]"] == "1.2.3.4"
+        found["ADD[0][1]"] == "5.6.7.8"
+        found["ADD[0][2]"] == "9.10.11.12"
+        found["ADD[1][0]"] == "11.22.33.44"
+        found["ADD[1][1]"] == "55.66.77.88"
+        found["ADD[2][0]"] == "111.222.333.444"
+    }
+
+    // ---------
 
     def "an scalar variable in an empty array is not an error"() {
         given:
