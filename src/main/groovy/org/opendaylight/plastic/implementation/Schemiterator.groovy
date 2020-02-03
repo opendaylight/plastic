@@ -25,28 +25,77 @@ import groovy.transform.CompileStatic;
 @CompileStatic
 class Schemiterator {
 
+    static List<Schemiterator> instantiateAll(Map<String,Object> bindings) {
+        List<Schemiterator> results = new ArrayList<>()
+
+        bindings.each { k,v ->
+            if (k.startsWith('_[') && k.endsWith(']')) {
+                results.add (new Schemiterator(k, (String) v))
+            }
+        }
+
+        return results
+    }
+
     private Set<String> names = new HashSet<>()
     private long[] ranges = new int[0]
     private long[] current = new int[0]
-    private List<Schemiterator> prependeds = new ArrayList<>()
+    private Schemiterator parent = null
 
-    Schemiterator() {
-        this("")
+    // TODO: figure out if we really need the multiple names feature
+
+    // Create an anonymous elastic iterator that only increments the least significant digit.
+    // Useful when you do not know the upper limit of the range apriori. Using max
+    // values for the range causes merging to use the current values instead of
+    // ranges.
+    //
+    Schemiterator(int dimensions) {
+        initUncapped(dimensions)
     }
 
-    // Parse format: _[name]=[i,j,...]
+    private void initUncapped(int dimensions) {
+        this.ranges = new long[dimensions]
+        Arrays.fill(ranges, Long.MAX_VALUE) // indefinite range
+        this.current = new long[dimensions]
+        Arrays.fill(current, 0L)
+    }
+
+    // Create from an arrayed variable name like ABC[^][*]
     //
-    Schemiterator(String internalSpec) {
-        if (internalSpec != null && !internalSpec.isEmpty()) {
-            String name = parseName(internalSpec)
-            validateName(name)
-            names.add(name)
-            ranges = parseRanges(internalSpec)
-            validateRanges(ranges)
-            current = createZeros(ranges.length)
+    Schemiterator(String candidate) {
+        if (candidate != null && !candidate.isEmpty()) {
+            int bracket = candidate.indexOf('[')
+            if (bracket > -1) {
+                String baseName = candidate.substring(0, bracket)
+                validateName(baseName)
+                names.add(baseName)
+                int dims = count(candidate, '[' as char)
+                initUncapped(dims)
+            }
         }
     }
 
+    // Create from either an iterator spec key/value like _[name] and [i,j,...]
+    //
+    Schemiterator(String iterKey, String iterValue) {
+        String name = parseName(iterKey)
+        validateName(name)
+        names.add(name)
+        ranges = parseRanges(iterValue)
+        validateRanges(ranges)
+        current = createZeros(ranges.length)
+    }
+
+    private int count(String s, char c) {
+        int count = 0
+        for (int i = s.length()-1; i >= 0; i--) {
+            if (s.charAt(i) == c)
+                count++
+        }
+        count
+    }
+
+    // Merging of two iterators into this one
     //
     Schemiterator(Schemiterator first, Schemiterator second) {
         names.addAll(first.names)
@@ -54,6 +103,7 @@ class Schemiterator {
         prepend(first)
 
         // merge the dimensions (left-aligned) and ranges (wider wins)
+        // Max value on a range means the range is not really known (and shouldn't win out over a known range)
 
         long[] longer
         long[] shorter
@@ -70,7 +120,12 @@ class Schemiterator {
         }
 
         for (int i = 0; i< shorter.length; i++) {
-            longer[i] = Math.max(shorter[i], longer[i])
+            if (shorter[i] == Long.MAX_VALUE)
+                continue
+            else if (longer[i] == Long.MAX_VALUE)
+                longer[i] = shorter[i]
+            else
+                longer[i] = Math.max(shorter[i], longer[i])
         }
     }
 
@@ -78,11 +133,10 @@ class Schemiterator {
         if (candidate == null || candidate.isEmpty())
             throw new PlasticException("ITER-NO-NAME",  "The iterator specification has a missing name: ${candidate}")
 
-        int right = candidate.indexOf(']')
-        if (!candidate.startsWith('_[') || right < 0)
+        if (!candidate.startsWith('_[') || !candidate.endsWith(']'))
             throw new PlasticException("ITER-BAD-NAME-FORM", "The iterator specification has a bad name format: ${candidate}")
 
-        candidate.substring(0+'_['.length(), right)
+        candidate.substring(0+'_['.length(), candidate.length()-1)
     }
 
     void validateName(String candidate) {
@@ -91,23 +145,22 @@ class Schemiterator {
     }
 
     int[] parseRanges(String candidate) {
-        int left = candidate.indexOf("]=[")
+        int left = candidate.indexOf('[')
         if (left < 0 || !candidate.endsWith(']'))
             throw new PlasticException("ITER-BAD-FORM", "The iterator specification has a bad name format: ${candidate}")
 
-        left += "]=[".length()
-
+        left++ // skip [
         int right = candidate.lastIndexOf(']')
         String allDims = candidate.substring(left, right)
         String[] sDims = allDims.isEmpty() ? new String[0] : allDims.split(',')
-        asIntegers(candidate, sDims)
+        asLongs(candidate, sDims)
     }
 
-    private long[] asIntegers(String candidate, String[] candidateInts) {
+    private long[] asLongs(String candidate, String[] candidateLongs) {
         try {
-            long[] results = new long[candidateInts.length]
-            for (int i = 0; i < candidateInts.length; i++) {
-                results[i] = Long.parseLong(candidateInts[i])
+            long[] results = new long[candidateLongs.length]
+            for (int i = 0; i < candidateLongs.length; i++) {
+                results[i] = Long.parseLong(candidateLongs[i])
             }
             results
         }
@@ -138,8 +191,8 @@ class Schemiterator {
         names.addAll(other.names)
     }
 
-    void prepend(Schemiterator other) {
-        prependeds.add(0, other)
+    void prepend(Schemiterator myParent) {
+        this.parent = myParent
     }
 
     void increment() {
@@ -158,15 +211,19 @@ class Schemiterator {
 
     String value() {
         StringBuilder sb = new StringBuilder()
-        for (Schemiterator prepended : prependeds) {
-            sb.append(prepended.value())
-        }
+        if (parent != null)
+            sb.append(parent.value())
+
         for (long v : current) {
             sb.append('[')
             sb.append(v)
             sb.append(']')
         }
         sb.toString()
+    }
+
+    String adornedValue() {
+        fullName() + value()
     }
 
     boolean isDone() {
@@ -181,8 +238,11 @@ class Schemiterator {
         new Schemiterator(this, other)
     }
 
-    @Override
-    String toString() {
+    String fullName() {
+        names.join(',')
+    }
+
+    String asSpec() {
         StringBuilder sb = new StringBuilder()
         for (long v : ranges) {
             if (sb.length() != 0)
@@ -190,10 +250,34 @@ class Schemiterator {
             sb.append(v)
         }
 
+        "_[" + fullName() + "]=[" + sb.toString() + "]"
+    }
+
+    void writeSpec(Map<String, Object> bindings) {
+        String[] parts = asSpec().split('=', -2)
+        bindings.put(parts[0], parts[1])
+    }
+
+    @Override
+    String toString() {
         StringBuilder val = new StringBuilder(value())
         if (val.length() != 0)
             val.insert(0, " ")
 
-        "_[" + names.join(",") + "]=[" + sb.toString() + "]" + val.toString()
+        asSpec() + val.toString()
+    }
+
+    void setCurrentFromIndices(Stack<Long> indices) {
+        int wanted = current.length
+        int given = indices.size()
+        if (given < wanted) {
+            String me = asSpec()
+            throw new PlasticException("PLASTIC-ITER-SHORT-DIM", "The following iterator was given too few dimensions ($given) : $me")
+        }
+
+        for (int i = 0; i< wanted; i++) {
+            long v = indices.elementAt((given-wanted)+i)
+            current[i] = v
+        }
     }
 }

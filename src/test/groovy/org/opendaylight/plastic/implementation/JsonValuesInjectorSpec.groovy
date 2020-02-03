@@ -495,7 +495,6 @@ class JsonValuesInjectorSpec extends Specification {
 
     def "recursively replace works for maps in lists"() {
         given:
-        Variables vars = new Variables()
         Object model = new JsonSlurper().parseText('''
         {
             "components": [
@@ -520,7 +519,7 @@ class JsonValuesInjectorSpec extends Specification {
         }
         ''')
         when:
-        instance.recursivelyReplace(model, vars.genericIndex(), "[0]")
+        instance.recursivelyReplace(model, Variables.genericIndex(), "[0]")
         then:
         model == expected
     }

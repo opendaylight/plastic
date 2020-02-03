@@ -43,6 +43,20 @@ class VariablesSpec extends Specification {
         '$ {abcd}'        | false
     }
 
+    def "should catch illegal characters in plastic variable names"() {
+        when:
+        new Variables(input)
+        then:
+        thrown (PlasticException)
+        where:
+        input             | _
+        '${a.}'           | _
+        '${a?}'           | _
+        '${a*}'           | _
+        '${abc[?]}'       | _
+        '${abc[&]%}'      | _
+    }
+
     def "can custom process each found plastic variable"() {
         given:
         Variables instance = new Variables("\${a}\${b}\${c}")

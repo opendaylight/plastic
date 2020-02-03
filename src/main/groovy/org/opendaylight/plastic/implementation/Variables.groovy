@@ -17,6 +17,10 @@ import java.util.regex.Pattern
 @CompileStatic
 class Variables {
 
+    static final char LBRACKET = '['
+    static final String[] ILLEGALS = [ ".", "[", "]", "]", "{", "}", "(", ")", "*", "~", "^", "?", "&", "|", "@", "=" ]
+    static final String GOODINDICES = "[]*^0123456789"
+
     static class Finding {
         final String raw
         final Object value
@@ -29,6 +33,29 @@ class Variables {
     private static final Pattern envelopePattern = ~/\$\{(.+?)\}/
 
     private static final String[] emptyStrings = new String[0]
+
+    static boolean basenameContainsIllegals(String candidate) {
+        int here = candidate.indexOf((int)LBRACKET)
+        if (here >= 0)
+            candidate = candidate.substring(0, here)
+
+        for (String c : ILLEGALS) {
+            if (candidate.indexOf(c) > -1)
+                return true
+        }
+        false
+    }
+
+    static boolean wellFormedIndices(String candidate) {
+        int here = candidate.indexOf((int)LBRACKET)
+        if (here >= 0) {
+            for (int i = here; i< candidate.length(); i++) {
+                if (GOODINDICES.indexOf((int)candidate.charAt(i)) < 0)
+                    return false
+            }
+        }
+        true
+    }
 
     static String adorn(String candidate) {
         StringBuilder sb = new StringBuilder("\${")
@@ -273,6 +300,7 @@ class Variables {
 
     Variables(String candidates) {
         foundNames = parse(candidates)
+        validateNames()
         replicateAlternatives()
         initialized()
     }
@@ -285,6 +313,15 @@ class Variables {
     Variables(List<String> candidates) {
         candidates.each { String s -> foundNames[s] = (Finding)null }
         initialized()
+    }
+
+    private void validateNames() {
+        foundNames.each { k,v ->
+            if (basenameContainsIllegals(k))
+                throw new PlasticException("PLASTIC-VAR-NAME-ILLEGAL", "The variable name $k contains one of the illegal characters $ILLEGALS")
+            if (!wellFormedIndices(k))
+                throw new PlasticException("PLASTIC-VAR-NAME-BAD-GENERIC", "The variable name $k has a badly formed array index")
+        }
     }
 
     void toEach(Closure cs) {

@@ -235,8 +235,9 @@ class MapTask {
     }
 
     private void warnDanglingInputs(Set unhandledInputs) {
-        if (!unhandledInputs.isEmpty()) {
-            log.warn("For (in:${input.schema}) (out:${output.schema}), the following input variables had no matching outputs: "+ unhandledInputs)
+        def dangling = unhandledInputs.findAll { s -> !s.startsWith('_')}
+        if (!dangling.isEmpty()) {
+            log.warn("For (in:${input.schema}) (out:${output.schema}), the following input variables had no matching outputs: "+ dangling)
         }
     }
 

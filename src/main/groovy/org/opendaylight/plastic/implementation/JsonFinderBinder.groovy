@@ -41,6 +41,15 @@ class JsonFinderBinder {
         }
     }
 
+    static class NonArrayedContext extends PlasticException {
+        String offender
+
+        NonArrayedContext(String offendingVarName) {
+            super("PLASTIC-NO-ARRAY-CONTEXT", "The following arrayed variable was used without enough surrounding arrays: $offendingVarName")
+            this.offender = offendingVarName
+        }
+    }
+
     private static final Pattern LONEDOT_REGEX = ~/(?<!\\)\./
 
     Bindings process(Object model, Object payload) {
@@ -165,91 +174,107 @@ class JsonFinderBinder {
     static class Recorder {
 
         private Map<String,Object> boundVars = [:]
-        private NamedCounters seenVarCounts = new NamedCounters()
-        private List<String> currentKeys = []
-        private Map<String,Integer> sizes = [:]
         private VariablesFetcher fetcher
-        private List<Long> iterables = []
 
-        void useFetcher(VariablesFetcher binder) {
-            this.fetcher = binder
-            this.currentKeys = binder.names()
+        private Stack<Long> activeIndices = new Stack<>()
+        private Stack<Map<String,Schemiterator>> activeIterators = new Stack<>()
+        private Map<String,Schemiterator> highWaterMarks = new HashMap<>()
+
+        void useFetcher(VariablesFetcher fetcher) {
+            this.fetcher = fetcher
         }
 
         void recordFind(Object value) {
-            // Binder: ADDR[^][*]  value: 1.2.3.4
+            // fetcher: ADDR[^][*]  value: 1.2.3.4
             Bindings results = fetcher.fetch(nullPrimitiveOrCollection(value))
-            for (String currentKey : currentKeys) {
-                int count = seenVarCounts.get(currentKey)
-                String newKey = currentKey.replace("[*]", "[${count}]")
-                boundVars[newKey] = results.get(currentKey)
-                seenVarCounts.increment(currentKey)
-                if (currentKey != newKey)
-                    sizes[currentKey] = count+1
+            for (String varName : results.bindings().keySet()) {
+                String newKey = assignFromIndices(varName)
+                boundVars[newKey] = results.get(varName)
+            }
+        }
+
+        String assignFromIndices(String varName) {
+            if (Variables.isGenericIndexed(varName)) {
+                Schemiterator myIterator = ensureIterator(varName)
+                myIterator.setCurrentFromIndices(activeIndices)
+                return myIterator.adornedValue()
+            }
+            else {
+                return varName
+            }
+        }
+
+        Schemiterator ensureIterator(String varName) {
+            if (activeIterators.isEmpty())
+                throw new NonArrayedContext(varName)
+
+            Map<String, Schemiterator> tos = activeIterators.peek()
+            if (tos.containsKey(varName))
+                return tos.get(varName)
+            else {
+                Schemiterator result = new Schemiterator(varName)
+                tos.put(varName, result)
+                return result
             }
         }
 
         void unUseFetcher() {
-            for (String currentKey : currentKeys) {
-                if (seenVarCounts.get(currentKey) == 0) {
-                    // An arrayed variable will have a key like "abc[*]" and if there is no dimension to the
-                    // array (which is fine), it won't be found. We don't want to create a fake entry for [0]
-                    // so protect against that.
-                    if (!Variables.isGenericIndexed(currentKey)) {
+            for (String varName : fetcher.names()) {
+                if (!highWaterMarks.containsKey(varName)) {
+
+                    // We hit a variable that was defined in the input schema, but was never found in the
+                    // payload. We want to make an entry for that name with a null value so it will not be
+                    // ignored but will be seen as having no value.
+                    //
+                    // But we do NOT want this behavior for arrayed variables because they can be bound to
+                    // empty arrays, so aren't found by definition and do not want them seen as missing.
+
+                    if (!Variables.isGenericIndexed(varName) && !boundVars.containsKey(varName)) {
                         recordFind(null)
                     }
+                }
+                else {
+                    Schemiterator iterator = highWaterMarks.get(varName)
+                    iterator.writeSpec(boundVars)
                 }
             }
 
             fetcher = null
-            currentKeys.clear()
         }
 
-        void pushIterable() {
-            iterables.add(0L)
+        void pushIteration() {
+            activeIndices.push(0L)
+            activeIterators.push(new HashMap<>());
         }
 
-        void popIterable() {
-            if (!iterables.isEmpty())
-                iterables.removeAt(iterables.size()-1)
-        }
-
-        void incrementIterable() {
-            if (!iterables.isEmpty()) {
-                Long l = iterables.get(iterables.size()-1)
-                l++
-                iterables.set(iterables.size()-1, l)
+        void popIteration() {
+            if (!activeIterators.isEmpty()) {
+                for (Map.Entry<String,Schemiterator> entry : activeIterators.peek().entrySet()) {
+                    mergeIntoHighwater (entry.key, entry.value)
+                }
+                activeIterators.pop()
             }
+
+            if (!activeIndices.isEmpty())
+                activeIndices.pop()
+        }
+
+        private void mergeIntoHighwater(String varName, Schemiterator iterator) {
+            if (highWaterMarks.containsKey(varName)) {
+                Schemiterator cousin = highWaterMarks.get(varName)
+                highWaterMarks.put(varName, cousin.mergeWith(iterator))
+            }
+            else
+                highWaterMarks.put(varName, iterator)
+        }
+
+        void incrementIteration() {
+            if (!activeIndices.isEmpty())
+                activeIndices.push(activeIndices.pop()+1)
         }
 
         Map<String,Object> bindings() {
             boundVars
-        }
-
-        void validateConsistentArrayed() {
-            if (!hasUniformValues(sizes)) {
-                logger.debug("PLASTIC-ARRAY-SIZES: fyi the asterisk was bound to arrays of different sizes: " +  sizes.toString())
-            }
-        }
-
-        boolean hasUniformValues(Map target) {
-            Iterator<Map.Entry> iterator = target.entrySet().iterator()
-            Object firstValue = iterator.hasNext() ? iterator.next()?.getValue() : null
-            Object different = target.find {
-                if (it.value == null && firstValue != null)
-                    true
-                else if (it.value != null && firstValue == null)
-                    true
-                else if (it.value == null && firstValue == null)
-                    false
-                else
-                    !it.value.equals(firstValue)
-            }
-            different == null
-        }
-
-        boolean hasUniformValues() {
-            hasUniformValues(sizes)
         }
 
         // Explicitly converting scalar values to strings below to avoid automatic
@@ -306,7 +331,6 @@ class JsonFinderBinder {
             recorder.unUseFetcher()
         }
 
-        recorder.validateConsistentArrayed()
         recorder.bindings()
     }
 
@@ -348,12 +372,15 @@ class JsonFinderBinder {
         }
 
         if (firstTerm == '[]') {
-            ifoundit.pushIterable()
-            for (Object nElement : nextElements) {
+            ifoundit.pushIteration()
+            int len = nextElements.size()
+            for (int i = 0; i< len; i++) {
+                Object nElement = nextElements[i]
                 getElementValue(remainingTerms, nElement, ifoundit)
-                ifoundit.incrementIterable()
+                if (i != len-1)
+                    ifoundit.incrementIteration()
             }
-            ifoundit.popIterable()
+            ifoundit.popIteration()
         }
         else {
             for (Object nElement : nextElements) {

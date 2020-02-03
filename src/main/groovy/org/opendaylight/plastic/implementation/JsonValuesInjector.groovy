@@ -34,7 +34,7 @@ class JsonValuesInjector {
 
     static class UnexpectedParentCollectionTypeException extends PlasticException {
         UnexpectedParentCollectionTypeException(Object parent) {
-            super("PLASTIC-WHAT_PAR-TYPE", "The following should have been a list or map but wasn't: "+parent)
+            super("PLASTIC-WHAT-PAR-TYPE", "The following should have been a list or map but wasn't: "+parent)
         }
     }
 
@@ -59,7 +59,7 @@ class JsonValuesInjector {
         }
     }
 
-    static class JsonParentContainers {
+    static class ParentContainers {
 
         static final String notGeneric = null
         static final List<String> noMatches = ImmutableList.of()
@@ -117,12 +117,14 @@ class JsonValuesInjector {
         }
     }
 
-    def inject(Map values, Object model, Set danglingInputs, Set danglingOutputs) {
+    Object inject(Map values, Object model, Set danglingInputs, Set danglingOutputs) {
 
-        def expectedInputVars = values.keySet() as Set
-        def parentCollections = new JsonParentContainers()
-        def todos = new TodoList()
-        def foundInputVars = [] as Set
+        Set<String> expectedInputVars = values.keySet() as Set
+        ParentContainers parentCollections = new ParentContainers()
+        TodoList todos = new TodoList()
+        Set<String> foundInputVars = [] as Set
+
+        List<Schemiterator> iterators = Schemiterator.instantiateAll(values)
 
         // some classifiers are doing multi-level child translations so that the model is truncated
         // by markers until the variable is actually injected. so walking cannot get to those
@@ -197,7 +199,7 @@ class JsonValuesInjector {
     }
 
     private def walkTheModel(Map inValues, Object model,
-                             JsonParentContainers parentCollections,
+                             ParentContainers parentCollections,
                              Set danglingOutputVars, Set foundInputVars,
                              TodoList todos) {
 
@@ -222,6 +224,7 @@ class JsonValuesInjector {
                 if (vars.isPresent()) {
                     def replaced = schemaValue
                     vars.toEach { String var, String val ->
+                        push a matched iterator
                         def matchedVars = Variables.matches(inValues, var)
                         if (!matchedVars.isEmpty()) {
                             if (Variables.isGenericIndexed(var)) {
@@ -255,8 +258,6 @@ class JsonValuesInjector {
 
         if (doPushPop) {
             if (parentCollections.isTosMarkedForExpansion()) {
-                Variables vars = new Variables("")
-
                 Triple tos = parentCollections.peek()
                 List marked = tos.modelAsList()
 
