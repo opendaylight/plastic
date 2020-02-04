@@ -57,6 +57,14 @@ class Variables {
         true
     }
 
+    static String basename(String candidate) {
+        int here = candidate.indexOf((int)LBRACKET)
+        if (here >= 0)
+            candidate.substring(0, here)
+        else
+            candidate
+    }
+
     static String adorn(String candidate) {
         StringBuilder sb = new StringBuilder("\${")
         sb.append(candidate)
@@ -75,6 +83,10 @@ class Variables {
         candidate.startsWith('${') && candidate.endsWith('}')
     }
 
+    static boolean isInternal(String candidate) {
+        candidate.startsWith('_')
+    }
+
     static String patternQuoted(String candidate) {
         Pattern.quote(candidate)
     }
@@ -86,11 +98,7 @@ class Variables {
     // Hotspot: don't use regex
 
     static boolean isGenericIndexed(String candidate) {
-        candidate.indexOf('[') > -1 && (candidate.contains("[*]") || candidate.contains("[^]"))
-    }
-
-    static String genericIndex() {
-        return "[*]"
+        !candidate.startsWith('_') && candidate.indexOf('[') > -1 && (candidate.contains("[*]") || candidate.contains("[^]"))
     }
 
     // Hotspot: don't use regex

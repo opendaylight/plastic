@@ -235,6 +235,7 @@ class JsonFinderBinder {
                 }
                 else {
                     Schemiterator iterator = highWaterMarks.get(varName)
+                    iterator.rerangeUsingCurrent()
                     iterator.writeSpec(boundVars)
                 }
             }

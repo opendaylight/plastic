@@ -10,7 +10,7 @@
 
 package org.opendaylight.plastic.implementation
 
-import com.google.common.collect.ImmutableList
+
 import groovy.transform.CompileStatic
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -41,34 +41,38 @@ class JsonValuesInjector {
     static class Triple {
 
         Object model
-        String genericVar
-        List<String> matchedVars
+        Map<String,Schemiterator> activeIterators = new HashMap<>()
 
-        Triple(Object model, String generic, List<String> matches) {
+        Triple(Object model) {
             this.model = model
-            this.genericVar = generic
-            this.matchedVars = matches
         }
         List modelAsList() {
             model instanceof List ? (List)model : (List)null
         }
 
-        List<String> indices() {
-            Variables vars = new Variables(matchedVars)
-            vars.extractIndices()
+        void add(Schemiterator iterator) {
+            activeIterators.put(iterator.fullName(), iterator)
+        }
+
+        Schemiterator iterator() {
+            Schemiterator result = null
+            for (Schemiterator iterator : activeIterators.values()) {
+                if (result == null)
+                    result = iterator
+                else
+                    result = result.mergeWith(iterator)
+            }
+            result
         }
     }
 
     static class ParentContainers {
 
-        static final String notGeneric = null
-        static final List<String> noMatches = ImmutableList.of()
-
         Stack<Triple> parentCollections = new Stack<>()
 
         def push(Object model) {
-            // Hotspot: used to use new Triple(model, null, [])
-            parentCollections.push (new Triple(model, notGeneric, noMatches))
+            // Hotspot
+            parentCollections.push (new Triple(model))
         }
 
         def pop() {
@@ -79,21 +83,20 @@ class JsonValuesInjector {
             parentCollections.isEmpty() ? null : parentCollections[-1]
         }
 
-        def markForExpansion(String genericVar, List<String> matched) {
+        def markForExpansion(Schemiterator iterator) {
             for (int i = parentCollections.size()-1; i >= 0; i--) {
                 if (parentCollections[i].model instanceof List) {
                     Triple triple = parentCollections[i]
-                    triple.genericVar = genericVar
-                    triple.matchedVars = matched
+                    triple.add(iterator)
                     return
                 }
             }
 
-            throw new IndexedButNoContainingArrayException(genericVar)
+            throw new IndexedButNoContainingArrayException(iterator.fullName())
         }
 
         boolean isTosMarkedForExpansion() {
-            !parentCollections.isEmpty() && parentCollections[-1].genericVar != null
+            !parentCollections.isEmpty() && !parentCollections[-1].activeIterators.isEmpty()
         }
     }
 
@@ -119,12 +122,12 @@ class JsonValuesInjector {
 
     Object inject(Map values, Object model, Set danglingInputs, Set danglingOutputs) {
 
-        Set<String> expectedInputVars = values.keySet() as Set
+        Set<String> expectedInputVars = (Set<String>) values.keySet()
         ParentContainers parentCollections = new ParentContainers()
         TodoList todos = new TodoList()
         Set<String> foundInputVars = [] as Set
 
-        List<Schemiterator> iterators = Schemiterator.instantiateAll(values)
+        Map<String,Schemiterator> iterators = Schemiterator.instantiateIterators(values)
 
         // some classifiers are doing multi-level child translations so that the model is truncated
         // by markers until the variable is actually injected. so walking cannot get to those
@@ -136,7 +139,7 @@ class JsonValuesInjector {
         for (int passes = 0; passes < MAXDEPTH; passes++) {
             int preFound = foundInputVars.size()
 
-            walkTheModel(values, model, parentCollections, danglingOutputs, foundInputVars, todos)
+            walkTheModel(values, iterators, model, parentCollections, danglingOutputs, foundInputVars, todos)
 
             // Have to actually modify the model after the traversal, otherwise
             // you get a concurrent modification exception (you can't iterate and
@@ -160,7 +163,7 @@ class JsonValuesInjector {
         // Hotspot: used to use danglingInputs.addAll(expectedInputVars - foundInputVars)
 
         expectedInputVars.each { expected ->
-            if (!foundInputVars.contains(expected))
+            if (!Variables.isInternal(expected) && !foundInputVars.contains(expected))
                 danglingInputs.add(expected)
         }
 
@@ -198,7 +201,7 @@ class JsonValuesInjector {
         parent
     }
 
-    private def walkTheModel(Map inValues, Object model,
+    private def walkTheModel(Map inValues, Map<String,Schemiterator> iterators, Object model,
                              ParentContainers parentCollections,
                              Set danglingOutputVars, Set foundInputVars,
                              TodoList todos) {
@@ -210,39 +213,41 @@ class JsonValuesInjector {
 
         model.eachWithIndex{ obj, int i ->
             if (isCollection(obj)) {
-                this.walkTheModel(inValues, obj, parentCollections, danglingOutputVars, foundInputVars, todos)
+                this.walkTheModel(inValues, iterators, obj, parentCollections, danglingOutputVars, foundInputVars, todos)
                 return
             }
 
             def schemaValue = value(obj)
 
             if (isCollection(schemaValue)) {
-                this.walkTheModel(inValues, schemaValue, parentCollections, danglingOutputVars, foundInputVars, todos)
+                this.walkTheModel(inValues, iterators, schemaValue, parentCollections, danglingOutputVars, foundInputVars, todos)
                 return
             } else {
                 Variables vars = new Variables(schemaValue.toString())
                 if (vars.isPresent()) {
                     def replaced = schemaValue
                     vars.toEach { String var, String val ->
-                        push a matched iterator
-                        def matchedVars = Variables.matches(inValues, var)
-                        if (!matchedVars.isEmpty()) {
-                            if (Variables.isGenericIndexed(var)) {
-                                parentCollections.markForExpansion(var, matchedVars)
+
+                        if (Variables.isGenericIndexed(var)) {
+                            Schemiterator iteratorForVar = iterators.get(var)
+                            if (iteratorForVar != null) {
+                                parentCollections.markForExpansion(iteratorForVar)
                             }
                             else {
+                                // it is an indexed variable and has no bound values, so the "expansion"
+                                // of it is to remove it from the array or use a blank value otherwise
+                                String abandoned = Variables.adorn(var)
+                                todos.add({ abandonVariable(model, abandoned) })
+                            }
+                        }
+                        else {
+                            if (inValues.containsKey(var)) {
                                 foundInputVars.add(var)
                                 replaced = this.replace(Variables.adorn(var), inValues[var], replaced)
                             }
-                        }
-                        else if (Variables.isGenericIndexed(var)) {
-                            // it is an indexed variable and has no bound values, so the "expansion"
-                            // of it is to remove it from the array or use a blank value otherwise
-                            String abandoned = Variables.adorn(var)
-                            todos.add({ abandonVariable(model, abandoned) })
-                        }
-                        else {
-                            danglingOutputVars.add(var)
+                            else {
+                                danglingOutputVars.add(var)
+                            }
                         }
                     }
 
@@ -261,52 +266,61 @@ class JsonValuesInjector {
                 Triple tos = parentCollections.peek()
                 List marked = tos.modelAsList()
 
+                // We need to (later) remove the original generic members that are acting as prototypes
+
                 marked.each {
                     todos.add({
                         marked.remove(0)
                     })
                 }
 
-                marked.each { member ->
+                // Figure out how many effective loops are required to be done to the set of prototypes
 
-                    // this indexed variable is a sub-member of an array of objects
-                    // (should not be an array of arrays)
+                Schemiterator iterations = tos.iterator()
 
-                    if (isCollection(member)) {
-                        List matchedIndices = tos.indices()
-                        matchedIndices.each { String index ->
+                while (!iterations.isDone()) {
+                    Map<String,String> specificVars = iterations.replaceables()
+                    marked.each { member ->
+                        // the indexed variable is a sub-member of an array of objects or an array of arrays
+
+                        if (isCollection(member)) {
                             def cloned = deepCopy(member)
-                            recursivelyReplace(cloned,
-                                    Variables.genericIndex(),
-                                    index)
+                            recursivelyReplace(cloned, specificVars)
                             todos.add({
-                                this.walkTheModel(inValues, cloned, parentCollections, danglingOutputVars,
-                                        foundInputVars, todos)
+                                this.walkTheModel(inValues, iterators, cloned, parentCollections,
+                                        danglingOutputVars, foundInputVars, todos)
                                 marked.add(cloned)
                             })
                         }
-                    }
 
-                    // this indexed variable is a member of an array of scalars, so
-                    // add de-indexed variables the end of array then walk the
-                    // array again (to handle multiple variables in a single slot
+                        // this indexed variable is a member of an array of scalars, so
+                        // add de-indexed variables the end of array then walk the
+                        // array again
 
-                    else {
-                        String templateValue = member.toString()
-                        String genericSrc = tos.genericVar
+                        else {
+                            String templateValue = member.toString()
+                            String specific = templateValue
 
-                        List<String> matched = tos.matchedVars
-                        matched.each { String varName ->
+                            // handle multiple variables in the same value
+
+                            for (Map.Entry<String,String> entry : specificVars) {
+                                specific = replace(entry.key, entry.value, specific)
+                            }
+
                             todos.add({
-                                String specific = templateValue.replace(genericSrc, varName)
                                 marked.add(specific);
                             })
+
+                            // convert specific variable name to final value from bindings
+
+                            todos.add({
+                                this.walkTheModel(inValues, iterators, marked, parentCollections, danglingOutputVars,
+                                        foundInputVars, todos)
+                            })
                         }
-                        todos.add({
-                            this.walkTheModel(inValues, marked, parentCollections, danglingOutputVars,
-                                    foundInputVars, todos)
-                        })
                     }
+
+                    iterations.increment()
                 }
             }
 
@@ -329,27 +343,29 @@ class JsonValuesInjector {
         return object.getClass().newInstance(object)
     }
 
-    def recursivelyReplace(Object model, String from, String to) {
+    void recursivelyReplace(Object model, Map<String,String> fromTo) {
         if(!isCollection(model))
             throw new CollectionExpectedException(model)
-        doRecursivelyReplace(null, null, model, from, to)
+        doRecursivelyReplace(null, null, model, fromTo)
     }
 
-    private def doRecursivelyReplace(Object parentMapOrList, Object keyOrIndex, Object model, String from, String to) {
+    private def doRecursivelyReplace(Object parentMapOrList, Object keyOrIndex, Object model, Map<String,String> fromTo) {
         if (model instanceof List) {
             ((List)model).eachWithIndex { obj,i ->
-                doRecursivelyReplace(model, i, obj, from, to)
+                doRecursivelyReplace(model, i, obj, fromTo)
             }
         }
         else if (model instanceof Map) {
             ((Map)model).each { k,v ->
-                doRecursivelyReplace(model, k, v, from, to)
+                doRecursivelyReplace(model, k, v, fromTo)
             }
         }
         else {
             def val = value(model)
-            def replacement = replace(from, to, val)
-            setListOrMapValue(parentMapOrList, keyOrIndex, replacement)
+            for (Map.Entry<String,String> entry : fromTo) {
+                val = replace(entry.key, entry.value, val)
+            }
+            setListOrMapValue(parentMapOrList, keyOrIndex, val)
         }
     }
 

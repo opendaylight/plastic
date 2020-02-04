@@ -215,7 +215,7 @@ class MapTask {
 
     private Map collectBindings(Map boundInputs, Map outputVars) {
         Variables vars = new Variables()
-        outputVars.collectEntries { ov, val ->
+        Map results = outputVars.collectEntries { ov, val ->
             if (vars.isGenericIndexed(ov)) {
                 boundInputs.each { k, v ->
                     if (vars.matches(k, ov))
@@ -225,6 +225,13 @@ class MapTask {
             else
                 [ ov, firstNonNull(boundInputs[ov], outputVars[ov]) ]
         }
+
+        boundInputs.each { k,v ->
+            if (k.startsWith('_'))
+                results.put(k, v)
+        }
+
+        results
     }
 
     private Object firstNonNull(Object... objs) {
