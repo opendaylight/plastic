@@ -55,6 +55,7 @@ class VariablesSpec extends Specification {
         '${a*}'           | _
         '${abc[?]}'       | _
         '${abc[&]%}'      | _
+        '${a b c}'        | _
     }
 
     def "can custom process each found plastic variable"() {
@@ -71,6 +72,17 @@ class VariablesSpec extends Specification {
         expect:
         Variables.adorn("string") == '${string}'
         Variables.adorn("hyphen-ated") == '${hyphen-ated}'
+    }
+
+    def "substring can show the raw location of a variable"() {
+        expect:
+        Variables.substring(name,search) == expected
+        where:
+        name            | search                      | expected
+        "abc"           | 'bannana boat'              | ''
+        'abc[]'         | '${abc[]} boat'             | '${abc[]}'
+        'abc[^][*]'     | 'foo ${abc[^][*]} bar'      | '${abc[^][*]}'
+        'abc[^][*]'     | 'foo ${abc[^][*]=123} bar'  | '${abc[^][*]=123}'
     }
 
     def "indexed variables can be recognized"() {
@@ -251,5 +263,21 @@ class VariablesSpec extends Specification {
 
         '${a'           | [ '${a' ]
         'a}'            | [ 'a}' ]
+    }
+
+    @Unroll
+    def "#input indexed variables have alternative names"() {
+        expect:
+        Variables.alternativeName(input) == expected
+        where:
+        input              | expected
+        ''                 | ''
+        'abc'              | 'abc'
+        '${a}'             | '${a}'
+        '${a[*]}'          | '${a[*]}'
+        '${a[*][*]}'       | '${a[^][*]}'
+        '${a[^][*]}'       | '${a[*][*]}'
+        '${a[*][*][*]}'    | '${a[^][^][*]}'
+        '${a[^][^][*]}'    | '${a[*][*][*]}'
     }
 }

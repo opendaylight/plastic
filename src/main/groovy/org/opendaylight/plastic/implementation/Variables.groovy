@@ -18,7 +18,7 @@ import java.util.regex.Pattern
 class Variables {
 
     static final char LBRACKET = '['
-    static final String[] ILLEGALS = [ ".", "[", "]", "]", "{", "}", "(", ")", "*", "~", "^", "?", "&", "|", "@", "=" ]
+    static final String[] ILLEGALS = [ ".", "[", "]", "]", "{", "}", "(", ")", "*", "~", "^", "?", "&", "|", "@", "=", " " ]
     static final String GOODINDICES = "[]*^0123456789"
 
     static class Finding {
@@ -95,10 +95,70 @@ class Variables {
         patternQuoted(adorn(candidate))
     }
 
+    static String alternativeName(String candidate) {
+        if (candidate) {
+            int firstCareted = candidate.indexOf('[^]')
+            int lastAsterisked = candidate.lastIndexOf('[*]')
+            if (firstCareted < 0 && lastAsterisked > -1) {
+                StringBuilder sb = new StringBuilder (candidate.replace('[*]', '[^]'))
+                sb.setCharAt(lastAsterisked+1, '*' as char)
+                return sb.toString()
+            }
+            else if (firstCareted > -1 && lastAsterisked > -1) {
+                return candidate.replace('[^]', '[*]')
+            }
+        }
+
+        return candidate
+    }
+
     // Hotspot: don't use regex
 
     static boolean isGenericIndexed(String candidate) {
         !candidate.startsWith('_') && candidate.indexOf('[') > -1 && (candidate.contains("[*]") || candidate.contains("[^]"))
+    }
+
+    static boolean mightBeIndexed(String candidate) {
+        candidate != null && candidate.indexOf('[') > -1 && candidate.indexOf(']') > -1
+    }
+
+    static boolean isSingular(String candidate) {
+        if (candidate == null)
+            return false
+        if (!candidate.startsWith('${'))
+            return false
+        if (!candidate.endsWith('}'))
+            return false
+        if (containsMultiple(candidate, '$'))
+            return false
+        if (containsMultiple(candidate, '{'))
+            return false
+        if (containsMultiple(candidate, '}'))
+            return false
+        true
+    }
+
+    static private boolean containsMultiple(String candidate, String target) {
+        int first = candidate.indexOf(target)
+        if (first < 0)
+            return false
+        if (first == candidate.length()-target.length()-1)
+            return false
+        int second = candidate.indexOf(target, first+1)
+        second > -1
+    }
+
+    static String substring(String varName, String searchHere) {
+        StringBuilder sb = new StringBuilder()
+        sb.append('${')
+        sb.append(varName)
+        int left = searchHere.indexOf(sb.toString())
+        if (left > -1) {
+            int right = searchHere.indexOf('}', left+1)
+            if (right > -1)
+                return searchHere.substring(left, right+1)
+        }
+        ""
     }
 
     // Hotspot: don't use regex
@@ -421,6 +481,14 @@ class Variables {
         List<String> results = []
         foundNames.values().each { Finding f ->
             results.add(f.raw)
+        }
+        results
+    }
+
+    Map<String,String> getRawNameMapping() {
+        Map<String,String> results = [:]
+        foundNames.each { String name,Finding f ->
+            results.put(f.raw, name)
         }
         results
     }

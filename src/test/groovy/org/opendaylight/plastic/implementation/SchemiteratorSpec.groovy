@@ -4,8 +4,12 @@ import spock.lang.Specification
 
 class SchemiteratorSpec extends Specification {
 
-    // NOTE: the iterator name is agnostic on using abc versus abc[*]. But all all the client logic
-    // is going to use the generically indexed names, so the unit tests below are just showing that.
+    Stack<Long>  asStack(String s) {
+        Stack<Long> results = new Stack<>()
+        String[] vals = s.split(',')
+        vals.each { results.push(Long.parseLong(it)) }
+        results
+    }
 
     def "bad format iterator specs are caught"() {
         when:
@@ -66,16 +70,14 @@ class SchemiteratorSpec extends Specification {
 
     def "iterator can be written and recovered"() {
         given:
-        Schemiterator source = new Schemiterator("abc[^][*]")
+        String name = "abc[^][*]"
+        Schemiterator source = new Schemiterator(name)
         Map bindings = [:]
-        source.writeSpec(bindings)
+        source.writeSpecTo(bindings)
         when:
         Map<String,Schemiterator> reconstituted = Schemiterator.instantiateIterators(bindings)
         then:
-        reconstituted.size() == 1
-        reconstituted.each { name, instance ->
-            instance == source
-        }
+        reconstituted[name] == source
     }
 
     def "iterator has an initial value"() {
@@ -88,6 +90,20 @@ class SchemiteratorSpec extends Specification {
         "_[abc]"               | "[]"        | ""
         "_[abc[*]]"            | "[0]"       | "[0]"
         "_[abc[^][^][^][*]]"   | "[1,2,3,4]" | "[0][0][0][0]"
+    }
+
+    def "iterator has effective dimensions which supports flattening of multidimensional iteration"() {
+        when:
+        Schemiterator instance = new Schemiterator(name)
+        then:
+        instance.effectiveDimensions() == expected
+        where:
+        name                   | expected
+        "abc"                  | 0
+        "abc[*]"               | 1
+        "abc[^][^][^][*]"      | 4
+        "abc[^][*][*][*]"      | 2
+        "abc[*][*][*][*]"      | 1
     }
 
     def "iterator can be incremented"() {
@@ -104,7 +120,7 @@ class SchemiteratorSpec extends Specification {
         "_[abc[*][*][*]]"  | "[3,2,2]"  | "[0][0][1]"
     }
 
-    def "iterator can be incremented till its done"() {
+    def "an over-incremented iterator caps out and is done"() {
         given:
         Schemiterator instance = new Schemiterator(key,value)
         when:
@@ -113,15 +129,43 @@ class SchemiteratorSpec extends Specification {
         instance.value() == s
         instance.isDone()
         where:
-        key        | value   | s
-        "_[abc]"   | "[0]"   | "[0]"
-        "_[abc]"   | "[3]"   | "[2]"
-        "_[abc]"   | "[3,4]" | "[2][3]"
+        key              | value   | s
+        "_[abc[*]]"      | "[0]"   | "[0]"
+        "_[abc[*]]"      | "[3]"   | "[2]"
+        "_[abc[*][*]]"   | "[3,4]" | "[2][3]"
+    }
+
+    def "an iterator just reaching max value is not done until another increment happens"() {
+        given:
+        Schemiterator instance = new Schemiterator("_[a[*]]","[3]")
+        and:
+        (instance.ranges[0]-1).times { instance.increment() }
+        when:
+        instance.increment()
+        then:
+        instance.isDone()
+        !old(instance.isDone())
+    }
+
+    def "because of borrowing, done for an iterator only applies to its asterisks not its complete range"() {
+        given:
+        Schemiterator a = new Schemiterator("_[a[*]]","[3]")
+        Schemiterator b = new Schemiterator("_[b[^][*]]","[2,3]")
+        and:
+        b.parent = a
+        and:
+        (b.ranges[1]-1).times { b.increment() }
+        when:
+        b.increment()
+        then:
+        !old(b.isDone())
+        b.isDone()
     }
 
     def "iterator can initially be in the done state"() {
         expect:
         new Schemiterator("_[abc]","[0]").isDone()
+        new Schemiterator(0).isDone()
     }
 
     def "iterator gives all adorned names"() {
@@ -132,25 +176,65 @@ class SchemiteratorSpec extends Specification {
         Schemiterator instance = new Schemiterator(a, b)
         instance.increment()
         then:
-        instance.replaceables() == ['a[^][*]': 'a[0][1]',
-                                    'b[*][*]': 'b[0][1]']
+        instance.replaceables() == [
+                'a[*][*]': 'a[0][1]',
+                'a[^][*]': 'a[0][1]',
+                'b[*][*]': 'b[0][1]',
+                'b[^][*]': 'b[0][1]'
+        ]
     }
 
-    def "prepended iterators contribute to the value but are not incremented"() {
+    def "explicitly borrowing iterators contribute to the value but incrementing is for asterisks"() {
         given:
-        Schemiterator a = new Schemiterator("_[a]","[3]")
+        Schemiterator a = new Schemiterator("_[a[*]]","[3]")
+        Schemiterator b = new Schemiterator("_[b[^][*]]","[1,3]")
+        Schemiterator instance = new Schemiterator("_[c[^][^][*]]","[1,1,5]")
+        and:
+        b.parent = a
+        instance.parent = b
+        and:
         1.times { a.increment() }
-        and:
-        Schemiterator b = new Schemiterator("_[b]","[3]")
         2.times { b.increment() }
-        and:
-        Schemiterator instance = new Schemiterator("_[c]","[5]")
-        3.times { instance.increment() }
         when:
-        b.prepend(a)
-        instance.prepend(b)
+        3.times { instance.increment() }
         then:
         instance.value() == "[1][2][3]"
+    }
+
+    def "child iterators of different depth ask for the right depth of value"() {
+        given:
+        Schemiterator a  = new Schemiterator("_[a[*]]","[3]")
+        Schemiterator b  = new Schemiterator("_[b[^][*]]","[1,3]")
+        Schemiterator c1 = new Schemiterator("_[c1[^][^][*]]","[1,1,5]")
+        Schemiterator c2 = new Schemiterator("_[c2[^][*]]","[1,5]")
+        and:
+        b.parent = a
+        c1.parent = b
+        c2.parent = b
+        and:
+        1.times { a.increment() }
+        2.times { b.increment() }
+        3.times { c1.increment() }
+        4.times { c2.increment() }
+        expect:
+        c1.value() == "[1][2][3]" // c1 gets value c1-b-a
+        c2.value() == "[2][4]"    // c2 gets value c2-b
+    }
+
+    def "implicitly borrowing iterators contribute to the value but incrementing is for asterisks"() {
+        given:
+        Schemiterator a = new Schemiterator("_[a[*]]","[3]")
+        Schemiterator b = new Schemiterator("_[b[*]]","[3]")
+        Schemiterator c = new Schemiterator("_[c[^][^][*]]","[1,1,5]")
+        and:
+        b.parent = a
+        c.parent = b
+        when:
+        1.times { a.increment() }
+        2.times { b.increment() }
+        7.times { c.increment() }
+        then:
+        c.value() == "[1][2][4]"
     }
 
     def "merging two iterators yields the largest dimension and widest ranges"() {
@@ -179,11 +263,22 @@ class SchemiteratorSpec extends Specification {
         instance.toString() == "_[lefty]=[7,3,1] -> [0][0][0]"
     }
 
-    def asStack(String s) {
-        Stack<Long> results = new Stack<>()
-        String[] vals = s.split(',')
-        vals.each { results.push(Long.parseLong(it)) }
-        results
+    def "merging of an iterator always recalculates virtual dimensions"() {
+        given:
+        String[] lparts = left.split("=", -2)
+        Schemiterator lefty = new Schemiterator(lparts[0], lparts[1])
+        and:
+        String[] rparts = right.split("=", -2)
+        Schemiterator righty = new Schemiterator(rparts[0],rparts[1])
+        when:
+        Schemiterator instance = new Schemiterator(lefty,righty)
+        then:
+        instance.effectiveDimensions() == depth
+        where:
+        left                       | right                      | depth
+        "_[abc[*][*]]=[2,2]"       | "_[abc[*][*]]=[2,2]"       | 1
+        "_[abc[*][*]]=[2,2]"       | "_[abc[^][*]]=[2,2]"       | 2
+        "_[abc[*][*][*]]=[2,2,3]"  | "_[abc[^][^][*]]=[2,2,2]"  | 3
     }
 
     def "iterator can have the current values set"() {
@@ -198,5 +293,40 @@ class SchemiteratorSpec extends Specification {
         "abc[^]"           | "2,1"    | "[1]"
         "abc[^][*]"        | "4,3"    | "[4][3]"
         "abc[^][*]"        | "3,2,1"  | "[2][1]"
+    }
+
+    def "ranges can flow up to parents and widen them"() {
+        given:
+        Schemiterator empty = new Schemiterator(0)
+        Schemiterator a = new Schemiterator("a[*]", 3)
+        Schemiterator b = new Schemiterator("b[^][*]", 4, 2)
+        Schemiterator c = new Schemiterator("c[^][*]", 1, 2)
+        Schemiterator d = new Schemiterator("d[*]", 1)
+        Schemiterator e = new Schemiterator("e[*]", 2)
+        Schemiterator f = new Schemiterator("f[^][^][*]", 6,7,8)
+        and:
+        Map<String,Schemiterator> working = [
+                'empty': empty,
+                'a': a,
+                'b': b,
+                'c': c,
+                'd': d,
+                'e': e,
+                'f': f
+        ]
+        and:
+        Stack<Schemiterator> stack = []
+        contents.split(",").each { stack.push(working[(it)]) }
+        when:
+        Schemiterator tos = stack.peek()
+        tos.flowOut(stack)
+        then:
+        stack.get(0).asSpec() == expectedBos
+        where:
+        contents    |  expectedBos
+        "a,b"       |  "_[a[*]]=[4]"
+        "a,c"       |  "_[a[*]]=[3]"
+        "empty,b"   |  "_[]=[4]"
+        "d,e,f"     |  "_[d[*]]=[6]"
     }
 }

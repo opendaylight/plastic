@@ -666,12 +666,13 @@ class JsonFinderBinderSpec extends Specification {
         def found = instance.process(model, payload).bindings()
 
         then:
-        isSubsetOf(found, [
+        found == [
                 'object-list[0][0]': [ 'complex': 'array'],
                 'object-list[0][1]': [ 'complex': 'nested'],
                 'object-list[1][0]': [ 'complex': 'lists'],
-                'object-list[1][1]': [ 'complex': 'maps']
-        ])
+                'object-list[1][1]': [ 'complex': 'maps'],
+                '_[object-list[^][*]]': '[2,2]'
+        ]
     }
 
     def "wildcarding for matches is supported"() {

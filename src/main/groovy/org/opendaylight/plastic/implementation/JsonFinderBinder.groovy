@@ -148,6 +148,8 @@ class JsonFinderBinder {
 
     // For performance, avoid Integer boxing
 
+    // TODO: remove unused class
+
     static class NamedCounters {
         static class Counter {
             int count = 0
@@ -235,8 +237,7 @@ class JsonFinderBinder {
                 }
                 else {
                     Schemiterator iterator = highWaterMarks.get(varName)
-                    iterator.rerangeUsingCurrent()
-                    iterator.writeSpec(boundVars)
+                    iterator.writeSpecTo(boundVars)
                 }
             }
 
@@ -261,6 +262,7 @@ class JsonFinderBinder {
         }
 
         private void mergeIntoHighwater(String varName, Schemiterator iterator) {
+            iterator.rerangeUsingCurrent()
             if (highWaterMarks.containsKey(varName)) {
                 Schemiterator cousin = highWaterMarks.get(varName)
                 highWaterMarks.put(varName, cousin.mergeWith(iterator))

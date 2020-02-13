@@ -8,6 +8,7 @@
  */
 package org.opendaylight.plastic.implementation
 
+
 import groovy.transform.CompileStatic;
 
 /**
@@ -31,7 +32,7 @@ class Schemiterator {
         bindings.each { k,v ->
             if (k.startsWith('_[') && k.endsWith(']')) {
                 Schemiterator iterator = new Schemiterator(k, (String) v)
-                results.put(iterator.fullName(), iterator)
+                iterator.addToMap(results)
             }
         }
 
@@ -40,9 +41,10 @@ class Schemiterator {
 
     static def insertIteratorSpec(Map bindings, String arrayName, List<String> array) {
         Schemiterator iterator = new Schemiterator(arrayName, (long)array.size())
-        iterator.writeSpec(bindings)
+        iterator.writeSpecTo(bindings)
     }
 
+    // TODO: remove
     private static String adorn(String varName) {
         StringBuilder sb = new StringBuilder()
         sb.append('_[')
@@ -57,6 +59,9 @@ class Schemiterator {
     private long[] current = new int[0]
     private Schemiterator parent = null
 
+    private int asteriskDimensions = 0
+    private int caretDimensions = 0
+
     // Create an anonymous uncapped iterator that only increments the least significant digit.
     // Useful when you do not know the upper limit of the range apriori. Using max
     // values for the range causes merging to use the current values instead of
@@ -65,6 +70,7 @@ class Schemiterator {
     Schemiterator(int dimensions) {
         initUncapped(dimensions)
         done = calculateInitialDone()
+        calculateVirtualDimensions()
     }
 
     // Create an uncapped iterator from an arrayed variable name like ABC[^][*]
@@ -82,6 +88,7 @@ class Schemiterator {
             }
         }
         done = calculateInitialDone()
+        calculateVirtualDimensions()
     }
 
     // Create a capped iterator from an arrayed variable name like ABC[^][*] with the given ranges
@@ -102,6 +109,7 @@ class Schemiterator {
             }
         }
         done = calculateInitialDone()
+        calculateVirtualDimensions()
     }
 
     // Create from either an iterator spec key/value like _[name] and [i,j,...]
@@ -114,6 +122,7 @@ class Schemiterator {
         validateRanges(ranges)
         current = createZeros(ranges.length)
         done = calculateInitialDone()
+        calculateVirtualDimensions()
     }
 
     private void initUncapped(int dimensions) {
@@ -132,14 +141,15 @@ class Schemiterator {
         count
     }
 
-    // Merging of two iterators into this one
+    // Merging of two sibling iterators into this one
     //
     Schemiterator(Schemiterator first, Schemiterator second) {
+
         names.addAll(first.names)
         names.addAll(second.names)
 
-        // no defined behavior for merging iterators with different parentage, so just take the first parents
-        prepend(first.parent)
+        // note: no defined behavior for merging iterators with different parentage
+        parent = firstNonNull(first.parent, second.parent)
 
         // merge the dimensions (left-aligned) and ranges (wider wins)
         // Max value on a range means the range is not really known (and shouldn't win out over a known range)
@@ -169,6 +179,48 @@ class Schemiterator {
 
         current = createZeros(ranges.length)
         done = calculateInitialDone()
+
+        calculateVirtualDimensions()
+    }
+
+    boolean equals(Object other) {
+        if (!(other instanceof Schemiterator))
+            return false
+        Schemiterator that = (Schemiterator) other
+        if (names.size() != that.names.size())
+            return false
+        if (caretDimensions != that.caretDimensions)
+            return false
+        if (asteriskDimensions != that.asteriskDimensions)
+            return false
+        if (!Arrays.equals(ranges, that.ranges))
+            return false
+        if (!Arrays.equals(current, that.current))
+            return false
+        if (!names.equals(that.names))
+            return false
+        true
+    }
+
+    private void copyFrom(Schemiterator other) {
+        names.clear()
+        names.addAll(other.names)
+
+        parent = other.parent
+        ranges = Arrays.copyOf(other.ranges, other.ranges.length)
+        current = Arrays.copyOf(other.current, other.current.length)
+
+        done = other.done
+
+        caretDimensions = other.caretDimensions
+        asteriskDimensions = other.asteriskDimensions
+    }
+
+    private Schemiterator firstNonNull(Schemiterator... objs) {
+        for (obj in objs)
+            if (obj != null)
+                return obj
+        null
     }
 
     private boolean calculateInitialDone() {
@@ -177,6 +229,24 @@ class Schemiterator {
                 return false
         }
         true
+    }
+
+    private void calculateVirtualDimensions() {
+
+        int widest = 0
+        int maxCarets = 0
+        int maxAsterisks = 0
+
+        for (String name : names) {
+            int asterisks = count(name, '*' as char)
+            int carets = count(name, '^' as char)
+            widest = Math.max(widest, carets + asterisks)
+            maxCarets = Math.max(maxCarets, carets)
+            maxAsterisks = Math.max(maxAsterisks, asterisks)
+        }
+
+        asteriskDimensions = widest-maxCarets
+        caretDimensions = maxCarets
     }
 
     private String parseName(String candidate) {
@@ -233,13 +303,85 @@ class Schemiterator {
         result
     }
 
-    void prepend(Schemiterator myParent) {
-        this.parent = myParent
+    int effectiveDimensions() {
+        caretDimensions+(asteriskDimensions > 0 ? 1 : 0)
+    }
+
+    void flowOut(List<Schemiterator> stack) {
+        int slen = stack.size()
+        if (slen >= caretDimensions+1) {
+            if (stack[-1] != this)
+                throw new PlasticException("PLASTIC-TOS-BAD", "Internal error: the top of the iterator stack (${stack[-1]}) should be (${this})")
+
+            long[] borroweds = Arrays.copyOf(ranges, caretDimensions)
+
+            final int tosIndex = slen-1
+            final int lastIndex = tosIndex-1
+
+            for (int i = 0; i < caretDimensions && borroweds.length > 0; i++) {
+                Schemiterator parentIterator = stack.get(lastIndex-i)
+                borroweds = parentIterator.consumeFlow(borroweds)
+
+                // Need to estalish the parent relationship so distributed incrementing works
+
+                Schemiterator childIterator = stack.get(lastIndex-i+1)
+                childIterator.parent = parentIterator
+            }
+        }
+        else {
+            throw new PlasticException("PLASTIC-NOT-BORROWABLE",
+                    "Not enough enclosing lists for iterator: ${this} (only ${slen} available)")
+        }
+    }
+
+    private long[] consumeFlow(long[] requiredIterations) {
+        if (requiredIterations.length == 0) {
+            return new long[0]
+        }
+        else if (ranges.length == 0) {
+            // An empty iterator will absorb only a single index and let the others keep flowing
+            // TODO: this is really initialization logic - refactor into method
+            ranges = new long[1]
+            ranges[0] = requiredIterations[-1]
+            current = createZeros(ranges.length)
+            done = calculateInitialDone()
+            asteriskDimensions = ranges.length
+            caretDimensions = 0
+            long[] result = Arrays.copyOf(requiredIterations, requiredIterations.length-1)
+            return result
+        }
+        else if (ranges[0] == Long.MAX_VALUE) {
+            return new long[0]
+        }
+        else {
+            boolean changed = false
+            int len = Math.min(asteriskDimensions, requiredIterations.length)
+
+            for (int i = 0; i< len; i++) {
+                int thisIndex = ranges.length-1-i
+                long thisRange = ranges[thisIndex]
+                int thatIndex = requiredIterations.length-1-i
+                long thatRange = requiredIterations[thatIndex]
+                if (thatRange > thisRange) {
+                    ranges[thisIndex] = thatRange
+                    changed = true
+                }
+            }
+            if (changed)
+                done = calculateInitialDone()
+            Arrays.copyOf(requiredIterations, requiredIterations.length-len)
+        }
     }
 
     void increment() {
         if (!done) {
-            for (int i = current.size() - 1; i >= 0; i--) {
+
+            // is having carets but no parent a real use case?
+            //
+            int leftmostIndex =  (parent == null) ? 0 : current.length-asteriskDimensions
+            int rightmostIndex = current.size()-1
+
+            for (int i = rightmostIndex; i >= leftmostIndex; i--) {
                 current[i] = (current[i]+1) % ranges[i]
                 if (current[i] != 0)
                     return
@@ -253,16 +395,36 @@ class Schemiterator {
         }
     }
 
-    String value() {
-        StringBuilder sb = new StringBuilder()
-        if (parent != null)
-            sb.append(parent.value())
-
-        for (long v : current) {
-            sb.append('[')
-            sb.append(v)
-            sb.append(']')
+    void reset() {
+        for (int i = 0; i< current.length; i++) {
+            current[i] = 0
         }
+        done = calculateInitialDone()
+    }
+
+    String value() {
+        computeValue(current.length)
+    }
+
+    private String computeValue(int digitsNeeded) {
+        StringBuilder sb = new StringBuilder()
+
+        if (digitsNeeded > 0) {
+
+            // is having carets but no parent a real use case?
+            //
+            int leftmostIndex = (parent == null) ? 0 : current.length - asteriskDimensions
+
+            if (parent != null)
+                sb.append(parent.computeValue(digitsNeeded-asteriskDimensions))
+
+            for (int i = leftmostIndex; i < current.length; i++) {
+                sb.append('[')
+                sb.append(current[i])
+                sb.append(']')
+            }
+        }
+
         sb.toString()
     }
 
@@ -279,6 +441,7 @@ class Schemiterator {
             sb.append(Variables.basename(name))
             sb.append(curValue)
             results.put(name, sb.toString())
+            results.put(Variables.alternativeName(name), sb.toString()) // TODO: optimize by creating alt at addName() time
         }
         results
     }
@@ -291,7 +454,20 @@ class Schemiterator {
         new Schemiterator(this, other)
     }
 
-    String fullName() {
+    void mergeFrom(Schemiterator other) {
+        Schemiterator intermediatry = new Schemiterator(this, other)
+        copyFrom(intermediatry)
+    }
+
+    void mergeFromUsingName(Schemiterator other, String replacementName) {
+        Set<String> saved = other.names
+        other.names.clear()
+        other.names.add(replacementName)
+        mergeFrom(other)
+        other.names = saved
+    }
+
+    String allNames() {
         names.join(',')
     }
 
@@ -303,18 +479,28 @@ class Schemiterator {
             sb.append(v)
         }
 
-        "_[" + fullName() + "]=[" + sb.toString() + "]"
+        "_[" + allNames() + "]=[" + sb.toString() + "]"
     }
 
-    void writeSpec(Map<String, Object> bindings) {
+    void writeSpecTo(Map<String, Object> bindings) {
         String[] parts = asSpec().split('=', -2)
         bindings.put(parts[0], parts[1])
     }
 
+    void addToMap(Map<String,Schemiterator> destination) {
+        for (String name : names) {
+            destination.put(name, this)
+            destination.put(Variables.alternativeName(name), this)
+        }
+    }
+
     @Override
     String toString() {
-        StringBuilder val = new StringBuilder(value())
-        asSpec() + ' -> ' + val.toString()
+        StringBuilder sb = new StringBuilder()
+        sb.append(asSpec())
+        sb.append(' -> ')
+        sb.append(value())
+        sb.toString()
     }
 
     void setCurrentFromIndices(Stack<Long> indices) {

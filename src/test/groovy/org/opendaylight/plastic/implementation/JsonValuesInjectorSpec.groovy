@@ -232,7 +232,7 @@ class JsonValuesInjectorSpec extends Specification {
         [ 'a': 1 ]           | [ 'a': 1 ]
     }
 
-    def "partial value replacement use bound values of various types results in string values"() {
+    def "partial value replacement using bound values of scalar types results in string values"() {
         given:
         def bound = [ 'ABC': value ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
@@ -247,16 +247,14 @@ class JsonValuesInjectorSpec extends Specification {
         payloadAndOutput.test == expected
         where:
         value                | expected
-        null                 | ""
+        null                 | "abc "
         "1"                  | "abc 1"
         123                  | "abc 123"
         true                 | "abc true"
         12345678901234567890 | "abc 12345678901234567890"
-        [ 'a' ]              | [ 'a' ]
-        [ 'a': 1 ]           | [ 'a': 1 ]
     }
 
-    def "edge: partial value replacement for non-scalar bound values is full value replacement"() {
+    def "edge: partial value replacement for non-scalar bound values stringifies them"() {
         given:
         def bound = [ 'ABC': value ]
         Object payloadAndOutput = new JsonSlurper().parseText('''
@@ -271,8 +269,8 @@ class JsonValuesInjectorSpec extends Specification {
         payloadAndOutput.test == expected
         where:
         value                | expected
-        [ 'a' ]              | [ 'a' ]
-        [ 'a': 1 ]           | [ 'a': 1 ]
+        [ 'a' ]              | 'abc [a]'
+        [ 'a': 1 ]           | "abc {a=1}"
     }
 
     def "a multi-variable array of scalar values is expanded properly"() {
