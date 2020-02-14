@@ -113,10 +113,11 @@ class IteratorExpansion {
 
                             CollectionUsageInfo infoForClone = _processModel(cloned)
 
-                            // CollectionUsageInfo tos = recursedCollections[recursedCollections.size()-1]
                             if (infoForClone.uses == 0) {
-                                println("REMOVE")
-                                // TODO: retract shared iterators (they just add confusion)
+
+                                // Retract the iterators for the abandoned clone - they just add noise
+
+                                flows.unshareIterators(oldClonedToNew)
                             }
                             else {
 

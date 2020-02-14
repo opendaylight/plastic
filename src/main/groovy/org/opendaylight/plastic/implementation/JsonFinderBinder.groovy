@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2019 Lumina Networks, Inc. All rights reserved.
+ * Copyright (c) 2019-2020 Lumina Networks, Inc. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
@@ -29,15 +29,6 @@ class JsonFinderBinder {
         UnsupportedModel(String msg, model) {
             super("PLASTIC-UNSUPPORTED-MODEL", msg)
             this.model = model
-        }
-    }
-
-    static class NoMultipleVariables extends PlasticException {
-        String offender
-
-        NoMultipleVariables(String candidate) {
-            super("PLASTIC-MULT-IN-VARS", candidate)
-            this.offender = candidate
         }
     }
 

@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2019 Lumina Networks, Inc. All rights reserved.
+ * Copyright (c) 2019-2020 Lumina Networks, Inc. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
@@ -473,60 +473,5 @@ class JsonValuesInjectorSpec extends Specification {
 
         then:
         jsonModel['xyz'] == 15000000
-    }
-
-    def "recursively replace works for lists in lists"() {
-        given:
-        Variables vars = new Variables()
-        Object model = new JsonSlurper().parseText('''
-        {
-            "components": [
-                ["${ADDR[*]}/${LEN[*]}"]
-            ]
-        }
-        ''')
-        and:
-        Object expected = new JsonSlurper().parseText('''
-        {
-            "components": [
-                ["${ADDR[0]}/${LEN[0]}"]
-            ]
-        }
-        ''')
-        when:
-        instance.recursivelyReplace(model, [ 'ADDR[*]': 'ADDR[0]', 'LEN[*]': 'LEN[0]' ])
-        then:
-        model == expected
-    }
-
-    def "recursively replace works for maps in lists"() {
-        given:
-        Object model = new JsonSlurper().parseText('''
-        {
-            "components": [
-                {
-                  "subcomponent": {
-                    "address": "${ADDR[*]}/${LEN[*]}",
-                  }
-                }
-            ]
-        }
-        ''')
-        and:
-        Object expected = new JsonSlurper().parseText('''
-        {
-            "components": [
-                {
-                  "subcomponent": {
-                    "address": "${ADDR[0]}/${LEN[0]}",
-                  }
-                }
-            ]
-        }
-        ''')
-        when:
-        instance.recursivelyReplace(model, [ 'ADDR[*]': 'ADDR[0]', 'LEN[*]': 'LEN[0]' ])
-        then:
-        model == expected
     }
 }

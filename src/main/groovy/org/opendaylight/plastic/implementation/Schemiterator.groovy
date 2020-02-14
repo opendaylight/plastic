@@ -44,15 +44,6 @@ class Schemiterator {
         iterator.writeSpecTo(bindings)
     }
 
-    // TODO: remove
-    private static String adorn(String varName) {
-        StringBuilder sb = new StringBuilder()
-        sb.append('_[')
-        sb.append(varName)
-        sb.append(']')
-        sb.toString()
-    }
-
     private boolean done = false
     private Set<String> names = new HashSet<>()
     private long[] ranges = new int[0]

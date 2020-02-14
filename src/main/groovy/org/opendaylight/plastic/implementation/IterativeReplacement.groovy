@@ -54,7 +54,7 @@ class IterativeReplacement {
         doRecursivelyReplace(null, null, model, bindings)
     }
 
-    private def doRecursivelyReplace(Object parentMapOrList, Object keyOrIndex, Object model, Map<String,Object> fromTo) {
+    private def doRecursivelyReplace (Object parentMapOrList, Object keyOrIndex, Object model, Map<String,Object> fromTo) {
         if (model instanceof List) {
             ((List)model).eachWithIndex { obj,i ->
                 doRecursivelyReplace(model, i, obj, fromTo)

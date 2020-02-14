@@ -11,6 +11,7 @@
 package org.opendaylight.plastic.implementation
 
 import com.google.common.annotations.VisibleForTesting
+import groovy.transform.CompileStatic
 import groovy.transform.PackageScope
 
 /**
@@ -23,7 +24,7 @@ import groovy.transform.PackageScope
  * This is JSON memory model specific and would need abstraction to deal with XML
  */
 
-// @CompileStatic TODO
+@CompileStatic
 class IteratorFlows {
 
     static class IndexedButNoContainingArrayException extends PlasticException {
@@ -74,7 +75,7 @@ class IteratorFlows {
 
             // For map.each, the obj will always be a map entry (string key plus a value of map, array, scalar)
 
-            def schemaValue = JsonValuesInjector.asValue(obj)
+            def schemaValue = asValue(obj)
 
             if (isCollection(schemaValue)) {
                 processModel(schemaValue)
@@ -125,6 +126,20 @@ class IteratorFlows {
         inValues.containsKey(varName)
     }
 
+    static private Object asValue(Object obj) {
+        def value = obj
+
+        if (obj instanceof Map.Entry) {
+            value = ((Map.Entry)obj).getValue()
+        }
+
+        if (obj instanceof String || obj instanceof GString || obj instanceof Number || obj instanceof Boolean ) {
+            value = obj.toString()
+        }
+
+        value
+    }
+
     // Return input (bound) iterator for given variable name or null if not found
     //
     Schemiterator getInputIterator(String varName) {
@@ -145,6 +160,15 @@ class IteratorFlows {
             long newId = listIds.get(newL)
             long oldId = listIds.get(oldL)
             outputIterators.put(newId, outputIterators.get(oldId))
+        }
+    }
+
+    // Remove any iterators associated with the new ids.
+    //
+    void unshareIterators(IdentityHashMap<List, List> oldToNew) {
+        oldToNew.each { oldL,newL ->
+            long newId = listIds.get(newL)
+            outputIterators.remove(newId)
         }
     }
 
