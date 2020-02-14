@@ -18,7 +18,7 @@ import java.util.regex.Pattern
 class Variables {
 
     static final char LBRACKET = '['
-    static final String[] ILLEGALS = [ ".", "[", "]", "]", "{", "}", "(", ")", "*", "~", "^", "?", "&", "|", "@", "=", " " ]
+    static final String[] ILLEGALS = [ "+", "<", ">", "\"", ".", "[", "]", "]", "{", "}", "(", ")", "*", "~", "^", "?", "&", "|", "@", "=", " " ]
     static final String GOODINDICES = "[]*^0123456789"
 
     static class Finding {
@@ -91,6 +91,7 @@ class Variables {
         Pattern.quote(candidate)
     }
 
+    // TODO: remove unused
     static String adornedAndQuoted(String candidate) {
         patternQuoted(adorn(candidate))
     }
@@ -485,10 +486,10 @@ class Variables {
         results
     }
 
-    Map<String,String> getRawNameMapping() {
+    Map<String,String> getNameToRawMapping() {
         Map<String,String> results = [:]
         foundNames.each { String name,Finding f ->
-            results.put(f.raw, name)
+            results.put(name, f.raw)
         }
         results
     }

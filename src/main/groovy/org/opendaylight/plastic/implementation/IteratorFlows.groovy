@@ -22,23 +22,13 @@ import groovy.transform.PackageScope
  *
  * This is JSON memory model specific and would need abstraction to deal with XML
  */
+
+// @CompileStatic TODO
 class IteratorFlows {
 
     static class IndexedButNoContainingArrayException extends PlasticException {
         IndexedButNoContainingArrayException(String varName) {
             super("PLASTIC-INDEX-WO-ARRAY", "The following indexed variable is not in an array: "+varName)
-        }
-    }
-
-    static class Identities {
-        private IdentityHashMap<Object,Long> references = new IdentityHashMap()
-        private long nextId = 0
-
-        long get(Object obj) {
-            Long id = references.get(obj);
-            if (id == null)
-                references.put(obj, id = nextId++);
-            return id;
         }
     }
 
@@ -106,9 +96,7 @@ class IteratorFlows {
                             // to the name used in the output schema, which could be different,
                             // like abc[^][*]
 
-                            // tos.iterator.mergeFrom(iteratorForVar)
                             tos.iterator.mergeFromUsingName(iteratorForVar, var)
-                            println()
                         }
                     }
                 }

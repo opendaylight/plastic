@@ -8,6 +8,7 @@
  */
 package org.opendaylight.plastic.implementation
 
+import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import org.slf4j.Logger
 import spock.lang.Specification
@@ -31,7 +32,7 @@ class NestedArraysSpec extends Specification {
 
     Morpher mockMorpher = Mock()
 
-    def "no indexing, static contents in arrays work"() {
+    def "non-indexed static contents in arrays work"() {
         given:
         Schema schemaIn = asSchema("foo", "1.0", "json", '''
         {
@@ -129,13 +130,6 @@ class NestedArraysSpec extends Specification {
             "aaa": [ "a", "b", "c" ],
             "bbb": [ 10, 20, 30, 40, 50 ]
         }
-        '''
-        String expected = '''
-        [
-            {
-                "aaa-bbb": [ "a/10", "b/20", "c/30" ]
-            }
-        ]
         '''
         and:
         TranslationPlan plan = new TranslationPlan(schemaIn, schemaOut, [mockMorpher])
@@ -382,7 +376,7 @@ class NestedArraysSpec extends Specification {
         asJson(found) == asJson(expected)
     }
 
-    def "flattening of a child can occur within an array that isn't flattened"() {
+    def "flattening of a child (of scalars) can occur within an array that isn't flattened"() {
         given:
         Schema schemaIn = asSchema("foo", "1.0", "json", '''
         {
@@ -448,6 +442,367 @@ class NestedArraysSpec extends Specification {
         when:
         Schema result = instance.map(asSchema("foo", "1.0", "json", payload), parsedEmptyDefaults)
         String found = result.emit()
+        then:
+        asJson(found) == asJson(expected)
+    }
+
+    def "flattening of a child (of objects) can occur within an array that isn't flattened"() {
+        given:
+        Schema schemaIn = asSchema("foo", "1.0", "json", '''
+        {
+            "aaa": [
+                {
+                    "id": "${id[*]}",
+                    "bbb": [ { "val": "${bbb[*][*]}" } ]
+                }
+            ]
+        }
+        ''')
+        Schema schemaOut = asSchema("bar", "1.0", "json", '''
+        [
+                {
+                    "foo": [
+                        "${id[*]}"
+                     ],
+                    "bar": [
+                        { "val": "${bbb[^][*]}" }
+                    ]
+                }
+        ]
+        ''')
+        String payload = '''
+        {
+            "aaa": [
+                {
+                    "id": 1,
+                    "bbb": [ { "val": "a" }, { "val": "b" }, { "val": "c" } ]
+                },
+                {
+                    "id": 2,
+                    "bbb": [ { "val": "d" }, { "val": "e" } ]
+                },
+                {
+                    "id": 3,
+                    "bbb": [ { "val": "f"  } ]
+                }
+            ]
+        }
+        '''
+        String expected = '''
+        [
+                {
+                    "foo": [ 1, 2, 3 ],
+                    "bar": [ { "val": "a" }, { "val": "b" }, { "val": "c" } ]
+                },
+                {
+                    "foo": [ 1, 2, 3 ],
+                    "bar": [ { "val": "d" }, { "val": "e" } ]
+                },
+                {
+                    "foo": [ 1, 2, 3 ],
+                    "bar": [ { "val": "f" } ]
+                }
+        ]
+        '''
+        and:
+        TranslationPlan plan = new TranslationPlan(schemaIn, schemaOut, [mockMorpher])
+        MapTask instance = new MapTask(plan)
+        and:
+        MapTask.log = Mock(Logger)
+        when:
+        Schema result = instance.map(asSchema("foo", "1.0", "json", payload), parsedEmptyDefaults)
+        String found = result.emit()
+        then:
+        asJson(found) == asJson(expected)
+    }
+
+    def "three deep nested can be replicated"() {
+        given:
+        Schema schemaIn = asSchema("foo", "1.0", "json", '''
+        [
+            {
+                "outer-id": "${outer-id[*]}",
+                "outer-child": [
+                    {
+                        "middle-id": "${middle-id[*][*]}",
+                        "middle-child": [
+                            { 
+                                "inner-id": "${inner-id[*][*][*]}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]    
+        ''')
+        String payload = '''
+        [
+            {
+                "outer-id": 1,
+                "outer-child": [
+                    {
+                        "middle-id": 1,
+                        "middle-child": [
+                            { 
+                                "inner-id": 1
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "outer-id": 2,
+                "outer-child": [
+                    {
+                        "middle-id": 1,
+                        "middle-child": [
+                            { 
+                                "inner-id": 1
+                            }
+                        ]
+                    },
+                    {
+                        "middle-id": 2,
+                        "middle-child": [
+                            { 
+                                "inner-id": 1
+                            },
+                            { 
+                                "inner-id": 2
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]    
+        '''
+        Schema schemaOut = asSchema("bar", "1.0", "json", '''
+        [
+            {
+                "MY-OUTER-ID": "${outer-id[*]}",
+                "MY-OUTER-CHILD": [
+                    {
+                        "MY-MIDDLE-ID": "${middle-id[^][*]}",
+                        "MY-MIDDLE-CHILD": [
+                            { 
+                                "MY-INNER-ID": "${inner-id[^][^][*]}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]    
+        ''')
+        String expected = '''
+        [
+            {
+                "MY-OUTER-ID": 1,
+                "MY-OUTER-CHILD": [
+                    {
+                        "MY-MIDDLE-ID": 1,
+                        "MY-MIDDLE-CHILD": [
+                            { 
+                                "MY-INNER-ID": 1
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "MY-OUTER-ID": 2,
+                "MY-OUTER-CHILD": [
+                    {
+                        "MY-MIDDLE-ID": 1,
+                        "MY-MIDDLE-CHILD": [
+                            { 
+                                "MY-INNER-ID": 1
+                            }
+                        ]
+                    },
+                    {
+                        "MY-MIDDLE-ID": 2,
+                        "MY-MIDDLE-CHILD": [
+                            { 
+                                "MY-INNER-ID": 1
+                            },
+                            { 
+                                "MY-INNER-ID": 2
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]    
+        '''
+        and:
+        TranslationPlan plan = new TranslationPlan(schemaIn, schemaOut, [mockMorpher])
+        MapTask instance = new MapTask(plan)
+        and:
+        MapTask.log = Mock(Logger)
+        when:
+        Schema result = instance.map(asSchema("foo", "1.0", "json", payload), parsedEmptyDefaults)
+        String found = JsonOutput.prettyPrint(result.emit())
+        expected = JsonOutput.prettyPrint(expected)
+        then:
+        asJson(found) == asJson(expected)
+    }
+
+    def "four deep nested can be replicated"() {
+        given:
+        Schema schemaIn = asSchema("foo", "1.0", "json", '''
+        [
+            {
+                "outer-id": "${outer-id[*]}",
+                "outer-child": [
+                    {
+                        "middle-id": "${middle-id[*][*]}",
+                        "middle-child": [
+                            { 
+                                "inner-id": "${inner-id[*][*][*]}",
+                                "inner-child": [
+                                     "${inner-child[*][*][*][*]}"
+                                 ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]    
+        ''')
+        String payload = '''
+        [
+            {
+                "outer-id": 1,
+                "outer-child": [
+                    {
+                        "middle-id": 1,
+                        "middle-child": [
+                            { 
+                                "inner-id": 1,
+                                "inner-child": [
+                                     "a"
+                                 ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "outer-id": 2,
+                "outer-child": [
+                    {
+                        "middle-id": 1,
+                        "middle-child": [
+                            { 
+                                "inner-id": 1,
+                                "inner-child": [
+                                     "aa"
+                                 ]
+                            }
+                        ]
+                    },
+                    {
+                        "middle-id": 2,
+                        "middle-child": [
+                            { 
+                                "inner-id": 1,
+                                "inner-child": [
+                                     "aa", "bb"
+                                 ]
+                            },
+                            { 
+                                "inner-id": 2,
+                                "inner-child": [
+                                     "cc", "dd"
+                                 ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]    
+        '''
+        Schema schemaOut = asSchema("bar", "1.0", "json", '''
+        [
+            {
+                "MY-OUTER-ID": "${outer-id[*]}",
+                "MY-OUTER-CHILD": [
+                    {
+                        "MY-MIDDLE-ID": "${middle-id[^][*]}",
+                        "MY-MIDDLE-CHILD": [
+                            { 
+                                "MY-INNER-ID": "${inner-id[^][^][*]}",
+                                "MY-INNER-CHILD": [
+                                     "${inner-child[^][^][^][*]}"
+                                 ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]    
+        ''')
+        String expected = '''
+        [
+            {
+                "MY-OUTER-ID": 1,
+                "MY-OUTER-CHILD": [
+                    {
+                        "MY-MIDDLE-ID": 1,
+                        "MY-MIDDLE-CHILD": [
+                            { 
+                                "MY-INNER-ID": 1,
+                                "MY-INNER-CHILD": [
+                                     "a"
+                                 ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "MY-OUTER-ID": 2,
+                "MY-OUTER-CHILD": [
+                    {
+                        "MY-MIDDLE-ID": 1,
+                        "MY-MIDDLE-CHILD": [
+                            { 
+                                "MY-INNER-ID": 1,
+                                "MY-INNER-CHILD": [
+                                     "aa"
+                                 ]
+                            }
+                        ]
+                    },
+                    {
+                        "MY-MIDDLE-ID": 2,
+                        "MY-MIDDLE-CHILD": [
+                            { 
+                                "MY-INNER-ID": 1,
+                                "MY-INNER-CHILD": [
+                                     "aa", "bb"
+                                 ]
+                            },
+                            { 
+                                "MY-INNER-ID": 2,
+                                "MY-INNER-CHILD": [
+                                     "cc", "dd"
+                                 ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]    
+        '''
+        and:
+        TranslationPlan plan = new TranslationPlan(schemaIn, schemaOut, [mockMorpher])
+        MapTask instance = new MapTask(plan)
+        and:
+        MapTask.log = Mock(Logger)
+        when:
+        Schema result = instance.map(asSchema("foo", "1.0", "json", payload), parsedEmptyDefaults)
+        String found = JsonOutput.prettyPrint(result.emit())
         then:
         asJson(found) == asJson(expected)
     }

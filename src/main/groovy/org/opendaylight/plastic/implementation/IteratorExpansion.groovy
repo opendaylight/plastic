@@ -38,10 +38,20 @@ class IteratorExpansion {
         }
     }
 
+    static class CollectionUsageInfo {
+        Object collection
+        int uses
+
+        CollectionUsageInfo(Object collection) {
+            this.collection = collection
+            this.uses = 0
+        }
+    }
+
     private IteratorFlows flows
-    private int recursionDepth = 0 // interactive debugging aid
-    private List<List> recursedParents = new ArrayList<>()
-    private Map<String,List> abandoning = new HashMap<>()
+    private List<List> recursedParentLists = new ArrayList<>()
+    private List<CollectionUsageInfo> recursedCollections = new ArrayList<>()
+    private Map<String,List> abandonedLeafs = new HashMap<>()
 
     IteratorExpansion(IteratorFlows flows) {
         this.flows = flows
@@ -50,18 +60,18 @@ class IteratorExpansion {
     void processModel(Object model) {
         _processModel(model)
 
-        abandoning.each { varName, parent ->
+        abandonedLeafs.each { varName, parent ->
             abandonVariable(parent, varName)
         }
     }
 
-    private void _processModel(Object model) {
+    private CollectionUsageInfo _processModel(Object model) {
 
-        recursionDepth++
+        recursedCollections.add(new CollectionUsageInfo(model))
 
         if (isList(model)) {
             List marked = (List) model // reference is identity!
-            recursedParents.add(marked)
+            recursedParentLists.add(marked)
 
             Schemiterator iterator = flows.getOutputIterator(marked)
             if (iterator.effectiveDimensions() > 0) {
@@ -77,20 +87,45 @@ class IteratorExpansion {
                         // the indexed variable is a sub-member of an array-of-objects or an array-of-arrays
 
                         if (isCollection(member)) {
-                            IdentityHashMap<List,List> oldToNew = new IdentityHashMap<>()
-                            Object cloned = deepCopy(member, oldToNew)
-                            flows.shareIterators(oldToNew)
-                            recursivelyReplace(cloned, specificVars)
 
-                            // now clone chunk should no longer have any generic variables AT THIS LEVEL - all
-                            // should be specifically indexed, but there may be generic variables in children
+                            IdentityHashMap<List, List> oldClonedToNew = new IdentityHashMap<>()
+                            Object cloned = deepCopy(member, oldClonedToNew)
 
-                            marked.add(cloned)
+                            // The cloned sublists will be encountered later as part of recursion, so don't
+                            // count them here by associating iterators with them (or you'll have too many)
+
+                            flows.shareIterators(oldClonedToNew)
+
+                            Set<String> found = [] as Set
+                            recursivelyReplace(cloned, specificVars, found)
+
+                            // We might have a specific-indexed variable that just might not have
+                            // a binding - this can happen for non-rectangular indices, so be prepared
+                            // to not commit the clone
+
+                            boolean maybeAbandon = found.isEmpty()
+                            if (!maybeAbandon) {
+                                incrementUseCounts()
+                            }
 
                             // recursion must happen in the context of the iterator incrementing to have the
                             // indexes advance correctly
 
-                            _processModel(cloned)
+                            CollectionUsageInfo infoForClone = _processModel(cloned)
+
+                            // CollectionUsageInfo tos = recursedCollections[recursedCollections.size()-1]
+                            if (infoForClone.uses == 0) {
+                                println("REMOVE")
+                                // TODO: retract shared iterators (they just add confusion)
+                            }
+                            else {
+
+                                // now clone chunk should no longer have any generic variables AT THIS LEVEL - all
+                                // should be specifically indexed, but there may be generic variables in children
+
+                                marked.add(cloned)
+
+                            }
                         }
 
                         // this indexed variable is a member of an array of scalars, so
@@ -119,8 +154,10 @@ class IteratorExpansion {
                             }
                             // newly created value should no longer have any generic indices - all should be specific
 
-                            if (!abandon)
+                            if (!abandon) {
                                 marked.add(specific);
+                                incrementUseCounts()
+                            }
                         }
                     }
 
@@ -131,12 +168,13 @@ class IteratorExpansion {
 
                 iterator.reset()
 
-                recursedParents.remove(recursedParents.size()-1)
+                recursedParentLists.remove(recursedParentLists.size()-1)
+                CollectionUsageInfo result = recursedCollections.remove(recursedCollections.size()-1)
 
                 // List was expanded and recursed because it was in use directly or indirectly by an iterator,
                 // so do not recurse again on it
 
-                return
+                return result
             }
         }
 
@@ -164,22 +202,43 @@ class IteratorExpansion {
             // For scalar (aka leaf) value...
 
             if (schemaValue instanceof String) {
-                String valueString = (String) schemaValue
-                if (Variables.mightBeIndexed(valueString)) {
+                Variables vars = new Variables((String) schemaValue)
+                Map<String, String> nameToRaws = vars.getNameToRawMapping()
 
-                    // We have a generic indexed variable that was not expandable because
-                    // it had no binding - this can happen for empty arrays, so just remove it
+                // Just need to figure out if the variable should be abandoned or contribute to keeping it's
+                // possibly cloned parent in existence, hence we can break out of the loop early
 
-                    if (Variables.isGenericIndexed(valueString)) {
-                        abandoning.put(valueString, recursedParents[-1])
+                for (String vName : vars.names()) {
+                    if (Variables.mightBeIndexed(vName)) {
+                        // We have a generic indexed variable that was not expandable because
+                        // it had no binding - this can happen for empty arrays, so just remove it
+
+                        if (Variables.isGenericIndexed(vName)) {
+                            abandonedLeafs.put(nameToRaws.get(vName), recursedParentLists[-1])
+                        } else if (Variables.isIndexed(vName)) {
+                            if (flows.isBound(Variables.unadorn(vName)))
+                                incrementUseCounts()
+
+                            // We have a specific indexed variable that might not have a binding because
+                            // the indexes are not rectangular (there are holes in the data)
+
+                            else
+                                abandonedLeafs.put(nameToRaws.get(vName), recursedParentLists[-1])
+                        }
                     }
                 }
             }
         }
 
-        recursionDepth--
         if (isList(model))
-            recursedParents.remove(recursedParents.size()-1)
+            recursedParentLists.remove(recursedParentLists.size()-1)
+        recursedCollections.remove(recursedCollections.size()-1)
+    }
+
+    private void incrementUseCounts() {
+        for (CollectionUsageInfo info : recursedCollections) {
+            info.uses++
+        }
     }
 
     private static boolean isCollection(Object model) {
@@ -206,27 +265,31 @@ class IteratorExpansion {
         return object.getClass().newInstance(object)
     }
 
-    void recursivelyReplace(Object model, Map<String,String> fromTo) {
+    void recursivelyReplace(Object model, Map<String,String> fromTo, Set<String> found) {
         if(!isCollection(model))
             throw new CollectionExpectedException(model)
-        doRecursivelyReplace(null, null, model, fromTo)
+        doRecursivelyReplace(null, null, model, fromTo, found)
     }
 
-    private def doRecursivelyReplace(Object parentMapOrList, Object keyOrIndex, Object model, Map<String,String> fromTo) {
+    private def doRecursivelyReplace(Object parentMapOrList, Object keyOrIndex, Object model,
+                                     Map<String,String> fromTo, Set<String> found) {
         if (model instanceof List) {
             ((List)model).eachWithIndex { obj,i ->
-                doRecursivelyReplace(model, i, obj, fromTo)
+                doRecursivelyReplace(model, i, obj, fromTo, found)
             }
         }
         else if (model instanceof Map) {
             ((Map)model).each { k,v ->
-                doRecursivelyReplace(model, k, v, fromTo)
+                doRecursivelyReplace(model, k, v, fromTo, found)
             }
         }
         else {
             def val = asValue(model)
             for (Map.Entry<String,String> entry : fromTo) {
                 val = replace(entry.key, entry.value, val)
+                if (flows.isBound(entry.value)) {
+                    found.add(entry.value)
+                }
             }
             setListOrMapValue(parentMapOrList, keyOrIndex, val)
         }
@@ -287,15 +350,17 @@ class IteratorExpansion {
         value
     }
 
-    // Remove any elements with the given value from the parent structure, wherever it occurs. If the
-    // element is a member of an array, then remove that slot. If it is a member of a map, then
-    // replace its value with a blank string
+    // Remove any elements with the given value from the parent structure, wherever it occurs.
+    // If the element is a member of an array, then remove that slot.
+    // If it is a member of a map, then delete the key
     //
     private void abandonVariable(Object parent, String element) {
         if (parent instanceof Map) {
-            ((Map)parent).each { k,v ->
-                if (v.equals(element))
-                    setListOrMapValue(parent, k, "")
+            Map map = (Map) parent
+            map.each { k,v ->
+                if (v.equals(element)) {
+                    map.remove(k)
+                }
                 else if (v instanceof Map || v instanceof List)
                     abandonVariable(v, element)
             }
@@ -304,8 +369,11 @@ class IteratorExpansion {
             ((List)parent).removeAll { e ->
                 if (element.equals(e))
                     return true
-                else if (e instanceof Map || e instanceof List)
+                else if (e instanceof Map || e instanceof List) {
                     abandonVariable(e, element)
+                    if ((e instanceof Map) && ((Map)e).isEmpty())
+                        return true
+                }
                 return false
             }
         }

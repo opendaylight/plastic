@@ -163,11 +163,11 @@ class JsonValuesInjector {
 
     Object inject(Map values, Object model, Set danglingInputs, Set danglingOutputs) {
 
-        IteratorFlows effectives = new IteratorFlows(values)
-        effectives.processModel(model)
-        int numVariables = effectives.numberOfVariables()
+        IteratorFlows flows = new IteratorFlows(values)
+        flows.processModel(model)
+        int numVariables = flows.numberOfVariables()
 
-        IteratorExpansion expansion = new IteratorExpansion(effectives)
+        IteratorExpansion expansion = new IteratorExpansion(flows)
         expansion.processModel(model)
 
         Set<String> expectedInputVars = (Set<String>) values.keySet()
