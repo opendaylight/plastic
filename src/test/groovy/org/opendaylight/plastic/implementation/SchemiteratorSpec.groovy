@@ -89,6 +89,40 @@ class SchemiteratorSpec extends Specification {
         reconstituted[name] == source
     }
 
+    def "iterator can be read"() {
+        given:
+        Map bindings = [
+                '_[test1[*][*][*]]': '[1,2,3]',
+                '_[test0[*]]': '[0]'
+        ]
+        when:
+        Schemiterator instance = new Schemiterator(name)
+        instance.readSpecFrom(bindings)
+        then:
+        instance.asSpec() == expected
+        where:
+        name                | expected
+        "test0[*]"          | "_[test0[*]]=[0]"
+        "test1[*][*][*]"    | "_[test1[*][*][*]]=[1,2,3]"
+    }
+
+    def "iterator can detected"() {
+        given:
+        Map bindings = [
+                '_[test1[*][*][*]]': '[1,2,3]',
+                '_[test0[*]]': '[0]'
+        ]
+        expect:
+        Schemiterator.hasSpec(name, bindings) == expected
+        where:
+        name                | expected
+        "test0[*]"          | true
+        "test1[*][*][*]"    | true
+        "test0"             | false
+        "abc"               | false
+        ""                  | false
+    }
+
     def "iterator has an initial value"() {
         when:
         Schemiterator instance = new Schemiterator(key,value)

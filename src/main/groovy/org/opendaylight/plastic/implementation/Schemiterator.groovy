@@ -39,9 +39,14 @@ class Schemiterator {
         return results
     }
 
-    static def insertIteratorSpec(Map bindings, String arrayName, List<String> array) {
+    static void insertIteratorSpec(Map bindings, String arrayName, List<String> array) {
         Schemiterator iterator = new Schemiterator(arrayName, (long)array.size())
         iterator.writeSpecTo(bindings)
+    }
+
+    static boolean hasSpec(String arrayName, Map bindings) {
+        String key = "_[$arrayName]"
+        bindings.containsKey(key)
     }
 
     private boolean done = false
@@ -473,9 +478,43 @@ class Schemiterator {
         "_[" + allNames() + "]=[" + sb.toString() + "]"
     }
 
+
+    // TODO: gather all this ad hoc formatting logic into a Spec class
+
     void writeSpecTo(Map<String, Object> bindings) {
         String[] parts = asSpec().split('=', -2)
         bindings.put(parts[0], parts[1])
+    }
+
+    void readSpecFrom(Map bindings) {
+
+        for (String name : names) {
+            String key = "_[$name]"
+            if (bindings.containsKey(key)) {
+                String value = bindings.get(key)
+                if (!value.startsWith('[') || !value.endsWith(']'))
+                    throw new PlasticException("PLASTIC-ITER-READ-FMT",
+                            "Bad value for iterator specification ${allNames()} in bindings: $value")
+
+                value = value.substring(1, value.length()-1)
+                String[] parts = value.split(',')
+                long[] theseRanges = new long[parts.length]
+
+                for (int i = 0; i< parts.length; i++) {
+                    String part = parts[i]
+                    long dim = Long.parseLong(part)
+                    theseRanges[i] = dim
+                }
+
+                Schemiterator shadow = new Schemiterator(name, theseRanges)
+                copyFrom(shadow)
+
+                return
+            }
+        }
+
+        throw new PlasticException("PLASTIC-ITER-READ",
+                "Could not find iterator specification in bindings for ${allNames()}")
     }
 
     void addToMap(Map<String,Schemiterator> destination) {

@@ -647,8 +647,6 @@ schema below will work too, resulting in 300 elements!
   }
 
 
-To continue the tutorial, see the separate part 2.
-
 Chapter 7 - Nested Arrayed Variables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1196,6 +1194,7 @@ variable value to be the last word.
 
 You can use the command line runner and a very simple input/output schema to test our your wildcard expressions.
 
+
 Addenda
 ^^^^^^^
 
@@ -1256,3 +1255,8 @@ This document can be converted to PDF using `rst2pdf
 
 `RST syntax reference
 <http://docutils.sourceforge.net/docs/user/rst/quickref.html>`_
+
+
+
+
+To continue the tutorial, see the separate part 2.
