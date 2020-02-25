@@ -9,11 +9,16 @@
 
 package integration
 
+import groovy.json.JsonSlurper
 import org.opendaylight.plastic.implementation.CartographerWorker
 import org.opendaylight.plastic.implementation.VersionedSchema
 import spock.lang.Specification
 
 class AcmeIntegrationSpec extends Specification {
+
+    def asJson(String s) {
+        new JsonSlurper().parseText(s)
+    }
 
     def benchmark = { cls ->
         def start = System.currentTimeMillis()
@@ -102,7 +107,7 @@ class AcmeIntegrationSpec extends Specification {
         def output = instance.translate(realInputSchema, realOutputSchema, input)
 
         then:
-        output.replaceAll("\n\\s*", "") == expectedOutput.replaceAll("\n\\s*", "")
+        asJson(output) == asJson(expectedOutput)
         println "Span for 100 is msec: ${span}"
     }
 }

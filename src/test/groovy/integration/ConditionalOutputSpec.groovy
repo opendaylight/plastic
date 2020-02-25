@@ -9,11 +9,16 @@
 
 package integration
 
+import groovy.json.JsonSlurper
 import org.opendaylight.plastic.implementation.CartographerWorker
 import org.opendaylight.plastic.implementation.VersionedSchema
 import spock.lang.Specification
 
 class ConditionalOutputSpec extends Specification {
+
+    def asJson(String s) {
+        new JsonSlurper().parseText(s)
+    }
 
     CartographerWorker instance = new CartographerWorker()
 
@@ -185,7 +190,7 @@ class ConditionalOutputSpec extends Specification {
         def output = instance.translate(realInputSchema, realOutputSchema, payload)
 
         then:
-        output.replaceAll("(\n|\\s*)", "") == expected.replaceAll("(\n|\\s*)", "")
+        asJson(output) == asJson(expected)
 
         where:
         payload | expected
