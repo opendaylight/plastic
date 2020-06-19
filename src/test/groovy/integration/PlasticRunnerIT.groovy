@@ -17,7 +17,7 @@ class PlasticRunnerIT extends Specification {
     final String dstDir = "target"
     final String runDir = "${dstDir}/plasticrunner"
     IFileNameFinder fileNameFinder = new FileNameByRegexFinder()
-    final String pkgName = fileNameFinder.getFileNames(dstDir,"plasticrunner").findAll {it.endsWith(".tar.gz")}[0]
+    final String pkgName = fileNameFinder.getFileNames(dstDir,"plastic-runner").findAll {it.endsWith(".tar.gz")}[0]
     final String expected = "src/test/resources/cartrunnerroot/cartroot-out-1.0-expected.json"
 
     final def cmds = [
