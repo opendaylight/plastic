@@ -69,6 +69,16 @@ class BetterJson {
         here != null && (here instanceof Map) && !((Map)here).isEmpty()
     }
 
+    boolean isScalar(String... path) {
+        Object here = maybeFetch(path)
+        here != null && !(here instanceof Map) && !(here instanceof List)
+    }
+
+    boolean isObject(String... path) {
+        Object here = maybeFetch(path)
+        here != null
+    }
+
     Object maybeFetch(String... path) {
         Object here = root
         path.each { p ->

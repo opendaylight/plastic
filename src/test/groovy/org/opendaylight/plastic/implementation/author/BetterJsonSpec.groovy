@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2019 Lumina Networks, Inc. All rights reserved.
  *
@@ -7,15 +6,6 @@
  * and is available at http://www.eclipse.org/legal/epl-v10.html
  *
  */
-
-/*
-* Copyright (c) 2019 Lumina Networks, Inc. All rights reserved.
-*
-* This program and the accompanying materials are made available under the
-* terms of the Eclipse Public License v1.0 which accompanies this distribution,
-* and is available at http://www.eclipse.org/legal/epl-v10.html
-*/
-
 package org.opendaylight.plastic.implementation.author
 
 import spock.lang.Specification
@@ -180,5 +170,40 @@ class BetterJsonSpec extends Specification {
         BetterJson instance = new BetterJson(['a': [ 'b': [:]]])
         expect:
         !instance.isNonEmptyMap('a', 'b')
+    }
+
+    def "a path to an existing scalar can be detected"() {
+        given:
+        BetterJson instance = new BetterJson(['a': [ 'b': [ 'c': 1 ]]])
+        expect:
+        instance.isScalar('a', 'b', 'c')
+    }
+
+    def "a path to a non-scalar is not mistaken for a scalar"() {
+        given:
+        BetterJson instance = new BetterJson(['a': [ 'b': [ 'c': 1 ]]])
+        expect:
+        !instance.isScalar('a', 'b')
+    }
+
+    def "a path to a non-existing element is not mistaken for a scalar"() {
+        given:
+        BetterJson instance = new BetterJson(['a': [ 'b': [ 'c': 1 ]]])
+        expect:
+        !instance.isScalar('a', 'b', 'd')
+    }
+
+    def "a path to an existing object can be detected"() {
+        given:
+        BetterJson instance = new BetterJson(['a': [ 'b': [ 'c': 1 ]]])
+        expect:
+        instance.isObject('a', 'b')
+    }
+
+    def "a path to a non-existing element is not mistaken for an object"() {
+        given:
+        BetterJson instance = new BetterJson(['a': [ 'b': [ 'c': 1 ]]])
+        expect:
+        !instance.isObject('a', 'b', 'd')
     }
 }
