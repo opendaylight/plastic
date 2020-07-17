@@ -357,14 +357,17 @@ class IteratorExpansion {
     //
     private void abandonVariable(Object parent, String element) {
         if (parent instanceof Map) {
+            String owningKey = ''
             Map map = (Map) parent
             map.each { k,v ->
                 if (v.equals(element)) {
-                    map.remove(k)
+                    owningKey = k
                 }
-                else if (v instanceof Map || v instanceof List)
+                else if ((v instanceof Map) || (v instanceof List))
                     abandonVariable(v, element)
             }
+            if (owningKey)
+                map.remove(owningKey)
         }
         else if (parent instanceof List) {
             ((List)parent).removeAll { e ->
