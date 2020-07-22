@@ -137,13 +137,26 @@ class VariablesSpec extends Specification {
         '${ghi[^][^][3]}' | '${ghi[^][^][3]}'
     }
 
-    def "individual indices can be extracted" () {
+    def "individual indice strings can be extracted" () {
         given:
         Variables instance = new Variables(['${abc[1]}', '${def[10]}', '${ghi[100]}', 'jkl', '$xyz[3][4][5]}' ] as String[])
         when:
         def found = instance.extractIndices()
         then:
         found == [ '[1]', '[10]', '[100]', '[3][4][5]' ]
+    }
+
+    def "individual indice integer can be extracted" () {
+        when:
+        int found = Variables.extractIndexAsInt(input, -1)
+        then:
+        found == expected
+        where:
+        input        |   expected
+        'abc[1]'     |   1
+        'abc[10]'    |   10
+        'abc'        |   -1
+        'abc[3][4]'  |   -1
     }
 
     def "specific indexed variables can be generated from a generic indexed variable"() {

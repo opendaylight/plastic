@@ -6,6 +6,10 @@
 # terms of the Eclipse Public License v1.0 which accompanies this distribution,
 # and is available at http://www.eclipse.org/legal/epl-v10.html
 
+# packaging ignores required lib if it is empty, so bandage it up here
+
+[ -d "lib" ] || mkdir lib
+
 : ${1?"Please supply a properties file name"}
 
 main_class="org.opendaylight.plastic.implementation.PlasticRunner"
