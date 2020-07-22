@@ -71,7 +71,7 @@ class IterativeReplacement {
             // The target of the replacement might be a string (or even some other object)
             // If it is a string, the might have zero or more variables within it.
 
-            if (val instanceof String) {
+            if (isString(val)) {
                 String strVal = (String) val
 
                 // Avoid overhead and optimize for the single variable-as-value
@@ -112,6 +112,10 @@ class IterativeReplacement {
         (model instanceof Map) || (model instanceof List)
     }
 
+    private static boolean isString(Object model) {
+        (model instanceof String) || (model instanceof GString)
+    }
+
     // TODO: some code duplication with IteratorExpansion
 
     static private Object replace(String varName, Object varValue, Object output) {
@@ -128,7 +132,7 @@ class IterativeReplacement {
         if (isCollection(varValue))
             return varValue
 
-        if (output instanceof String || output instanceof GString) {
+        if (isString(output)) {
             String sOutput = (String) output
             String sValue = varValue.toString()
 
@@ -156,17 +160,7 @@ class IterativeReplacement {
     }
 
     static private Object asValue(Object obj) {
-        Object value = obj
-
-        if (obj instanceof Map.Entry) {
-            value = ((Map.Entry)obj).getValue()
-        }
-
-        else if (obj instanceof String || obj instanceof GString || obj instanceof Number || obj instanceof Boolean ) {
-            value = obj.toString()
-        }
-
-        value
+        (obj instanceof Map.Entry) ? ((Map.Entry)obj).getValue() : obj
     }
 }
 

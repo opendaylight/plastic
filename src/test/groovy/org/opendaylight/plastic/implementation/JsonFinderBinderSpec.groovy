@@ -557,6 +557,8 @@ class JsonFinderBinderSpec extends Specification {
         1.2       | BigDecimal.class
         "\"a\""   | String.class
         []        | ArrayList.class
+        true      | Boolean.class
+        false     | Boolean.class
     }
 
     def "a top level array of scalars can have hash members bound"() {

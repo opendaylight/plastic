@@ -1,0 +1,28 @@
+{
+  "name": "${snc-name}",
+  "rate": "${snc-rate}",
+  "include-nodes": [
+    {
+      "device-name-a": "${in-device-name-a[*]}",
+      "interface-name-a": "${in-interface-name-a[*]}",
+      "device-name-b": "${in-device-name-b[*]}",
+      "interface-name-b": "${in-interface-name-b[*]}"
+    }
+  ],
+  "exclude-nodes": [
+    {
+      "device-name-a": "${ex-device-name-a[*]}",
+      "interface-name-a": "${ex-interface-name-a[*]}",
+      "device-name-b": "${ex-device-name-b[*]}",
+      "interface-name-b": "${ex-interface-name-b[*]}"
+    }
+  ],
+  "end-points": [
+    {
+      "device-name": "${ep-device-name[*]}",
+      "interface-name": "${ep-interface-name[*]}",
+      "ccmd-device-name": "${ep-ccmd-device-name[*]}",
+      "ccmd-adj-name": "${ep-ccmd-adj-name[*]}"
+    }
+  ]
+}
