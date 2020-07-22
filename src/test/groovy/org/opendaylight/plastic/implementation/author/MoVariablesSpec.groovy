@@ -69,16 +69,42 @@ class MoVariablesSpec extends Specification {
         when:
         MoArray slice = instance.asArray("a[*]")
         then:
-        slice.size() == 2
+        slice.size() == 4
     }
 
-    def "morpher array can include everything, but iterator does not contribute to size"() {
+    def "morpher array size must count holes too"() {
         given:
-        MoVariables instance = new MoVariables(['a[0]': 11, 'a[1]': 33, 'a[5]': 'abc', '_[a[*]]': '[6]'])
+        int size = 6
+        MoVariables instance = new MoVariables(['a[0]': 11, 'a[1]': 33, 'a[5]': 'abc', '_[a[*]]': "[$size]"])
         when:
         MoArray slice = instance.asArray("a[*]")
         then:
-        slice.size() == instance.size()-1
+        slice.size() == size
+    }
+
+    def "morpher array must include holes in iterating"() {
+        given:
+        List expected = [ null, 11, 33, null, null, 'abc' ]
+        MoVariables instance = new MoVariables(['a[1]': expected[1],
+                                                'a[2]': expected[2],
+                                                'a[5]': expected[5],
+                                                '_[a[*]]': "[${expected.size()}]"])
+        when:
+        MoArray slice = instance.asArray("a[*]")
+        then:
+        for (int i = 0; i< slice.size(); i++) {
+            slice[i] == expected[i]
+        }
+    }
+
+    def "morpher array doublet test case of [ hole, non-hole ]"() {
+        given:
+        MoVariables instance = new MoVariables(['a[1]': 'abc', '_[a[*]]': "[2]"])
+        when:
+        MoArray slice = instance.asArray("a[*]")
+        then:
+        slice[0] == null
+        slice[1] == 'abc'
     }
 
     def "missing iterator is added"() {
@@ -106,19 +132,19 @@ class MoVariablesSpec extends Specification {
         when:
         List slices = instance.asArrays("a[*]","b[*]","c[*]")
         then:
-        slices.collect { MoArray mv -> mv.size() } == [2, 1, 1]
+        slices.collect { MoArray mv -> mv.size() } == [2, 6, 46]
     }
 
-    def "morpher array can access in the right order"() {
+    def "morpher array can access values in order even with holes"() {
         given:
-        MoArray instance = new MoArray("a[*]", ['a[55]': 'a55', 'a[0]': 'a0', 'a[1]': 'a1', 'b[5]': 'b5', 'a[2]': 'a2', 'a[10]': 'a10'])
+        MoArray instance = new MoArray("a[*]", ['a[7]': 'a7', 'a[0]': 'a0', 'a[1]': 'a1', 'b[5]': 'b5', 'a[2]': 'a2', 'a[9]': 'a9'])
         List found = []
         when:
-        (0..4).each { i ->
+        (0..9).each { i ->
             found << instance[i]
         }
         then:
-        found == ['a0', 'a1', 'a2', 'a10', 'a55']
+        found == ['a0', 'a1', 'a2', null, null, null, null, 'a7', null, 'a9']
     }
 
     def "morpher array can be set"() {

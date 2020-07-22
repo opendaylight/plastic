@@ -552,4 +552,12 @@ class Schemiterator {
             ranges[i] = current[i] + 1
         }
     }
+
+    long size() {
+        long s = 1
+        for (long r : ranges) {
+            s *= r
+        }
+        s
+    }
 }
