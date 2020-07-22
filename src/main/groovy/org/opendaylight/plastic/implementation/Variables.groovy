@@ -191,6 +191,21 @@ class Variables {
         (left < right) ? candidate.substring(left, right+1) : ""
     }
 
+    static int extractIndexAsInt(String candidate, int defaultValue) {
+        int result = defaultValue
+        String found = extractIndex(candidate)
+        if (!found.isEmpty()) {
+            try {
+                result = Integer.parseInt(found.substring(1, found.size()-1))
+            }
+            catch (NumberFormatException e) {
+                // not sure it makes sense to fuss about this
+                // just let the default value be returned
+            }
+        }
+        result
+    }
+
     static String generifyIndex(String candidate) {
         // avoiding regex for speed
 

@@ -18,9 +18,9 @@ import groovy.transform.CompileStatic;
  * - each dimension has a range 0 ... L-1
  * - merging where larger ranges and bigger dimensions win
  * - incrementable with a current value
- * - incrementing only applies to non-parent dimensions
+ * - incrementing only applies to non-parent-supplied dimensions
  * - a concept of "is done", which needs to be checked FIRST to allow for zero length arrays
- * - "is done" only applies to non-parent dimension
+ * - "is done" only applies to non-parent-supplied dimension
  *
  */
 @CompileStatic
@@ -551,5 +551,13 @@ class Schemiterator {
         for (int i = 0; i< current.length; i++) {
             ranges[i] = current[i] + 1
         }
+    }
+
+    long size() {
+        long s = 1
+        for (long r : ranges) {
+            s *= r
+        }
+        ranges.length ? s : 0
     }
 }
