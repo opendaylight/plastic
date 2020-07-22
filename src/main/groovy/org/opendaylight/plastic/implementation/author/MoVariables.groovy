@@ -112,6 +112,10 @@ class MoVariables {
     boolean containsKey(String key) {
         bindings.containsKey(key)
     }
+
+    String dump() {
+        bindings.toMapString()
+    }
 }
 
 class MoArray {
@@ -138,6 +142,8 @@ class MoArray {
     private Set keys
     private String sliceName
     private Schemiterator iterator
+
+    // TODO: i don't believe that we need lazyOrderedKeys anymore after using sizeFromKeys() - remove it
 
     private List<String> lazyOrderedKeys = []
     private List<Object> lazyOrderedValues = []
@@ -168,8 +174,22 @@ class MoArray {
     // bindings, or none of the array logic will work
     //
     private void updateIterator() {
-        iterator = new Schemiterator(sliceName, keys.size())
+        iterator = new Schemiterator(sliceName, sizeFromKeys(keys))
         iterator.writeSpecTo(bindings)
+    }
+
+    private int sizeFromKeys(Set<String> theKeys) {
+        int largestFoundIndex = -1
+        for (String key : theKeys) {
+            int index = Variables.extractIndexAsInt(key, -1)
+            if (index > largestFoundIndex)
+                largestFoundIndex = index
+        }
+        largestFoundIndex == -1 ? 0 : (largestFoundIndex+1)
+    }
+
+    String getName() {
+        sliceName
     }
 
     List orderedKeys() {
@@ -181,10 +201,17 @@ class MoArray {
 
     List orderedValues() {
         if (lazyOrderedValues.isEmpty()) {
-            List okeys = orderedKeys()
-            this.lazyOrderedValues = okeys.collect { k -> bindings[k] }
+            int len = size()
+            for (int i = 0; i< len; i++) {
+                String key = Variables.generateAsIndexed(sliceName, i)
+                lazyOrderedValues.add(bindings[key])
+            }
         }
         lazyOrderedValues
+    }
+
+    List values() {
+        orderedValues()
     }
 
     boolean isEmpty() {
@@ -192,7 +219,7 @@ class MoArray {
     }
 
     int size() {
-        keys.size()
+        iterator.size()
     }
 
     /**
@@ -221,7 +248,7 @@ class MoArray {
         keys.each { k -> bindings.remove(k) }
         keys.clear()
         lazyOrderedKeys.clear()
-        lazyOrderedKeys.clear()
+        lazyOrderedValues.clear()
 
         for (int i = 0; i< values.size(); i++) {
             bindings.put(newVars[i], values[i])
@@ -257,4 +284,16 @@ class MoArray {
         keys.add(newVar)
     }
 
+    String dump() {
+        StringBuilder sb = new StringBuilder()
+        int len = size()
+        for (int i = 0; i< len; i++) {
+            if (sb.size() != 0)
+                sb.append(', ')
+            sb.append(getAt(i)?.toString())
+        }
+        sb.append((sb.size() == 0) ? ']' : ' ]')
+        sb.insert(0, "$sliceName [ ")
+        sb.toString()
+    }
 }
