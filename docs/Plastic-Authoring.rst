@@ -319,6 +319,22 @@ You can get/set an individual member of an array. You can set the whole value fo
 once). And there are accessors for size(), isEmpty(), etc. There is not currently a way to incrementally
 grow an array by appending onto the end.
 
+Array Creation
+--------------
+A very common use case is to create an array of data to be expanded into the output schema. The
+cononical approach is to just create a normal List, append all the contents, then insert it into
+the outputs like this::
+
+    void tweakValues(MoVariables inputs, MoVariables outputs) {
+        List abcs = [ ]
+        for (...) {
+           ...
+           abcs.add(value) // append using Java-like syntax, or
+           abc << value    // append using Groovy syntax
+        }
+        outputs.newArray('my-abcs[*]', abcs)
+    }
+
 Use Cases (Older Morpher)
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
