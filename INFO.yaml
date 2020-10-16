@@ -1,0 +1,43 @@
+---
+project: 'plastic'
+project_creation_date: '2019-11-01'
+project_category: ''
+lifecycle_state: 'Incubation'
+project_lead: &odl_plastic_ptl
+    name: 'Allan Clarke'
+    email: 'aclarke@pobox.com'
+    company: ''
+    id: 'allanclarke'
+    timezone: 'Unknown/Unknown'
+primary_contact: *odl_plastic_ptl
+issue_tracking:
+    type: 'jira'
+    url: 'https://jira.opendaylight.org/projects/'
+    key: 'plastic'
+mailing_list:
+    type: 'groups.io'
+    url: 'app-dev@lists.opendaylight.org'
+    tag: '[]'
+realtime_discussion:
+    type: 'irc'
+    server: 'freenode.net'
+    channel: '#opendaylight'
+meetings:
+    - type: 'gotomeeting+irc'
+      agenda: 'https://wiki.opendaylight.org'
+      url: ''
+      server: 'freenode.net'
+      channel: '#opendaylight'
+      repeats: ''
+      time: ''
+repositories:
+    - plastic
+committers:
+    - <<: *odl_plastic_ptl
+tsc:
+    # yamllint disable rule:line-length
+    approval: 'https://wiki.lfnetworking.org/pages/viewpage.action?spaceKey=ODL&title=2020-03-05+TSC+Minutes'
+    changes:
+        - type: ''
+          name: ''
+          link: ''
